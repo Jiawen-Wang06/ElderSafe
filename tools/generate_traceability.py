@@ -4,13 +4,25 @@
 Reads the requirements register from docs/04-software-requirements.md and the
 test results produced by CI, then writes docs/traceability.md.
 
-Test frameworks tag each test with the requirement it verifies:
+Each test carries the requirement it verifies in its *display name*:
 
-    xUnit       [Trait("Requirement", "REQ-FALL-03")]
-    pytest      @pytest.mark.req("REQ-FALL-01")
-    Playwright  test("...", { tag: "@REQ-FALL-01" }, async () => {...})
+    xUnit       [Fact(DisplayName = "REQ-FALL-03 escalates after the timeout")]
+    pytest      def test_REQ_FALL_01_detects_free_fall(): ...
+    Playwright  test("REQ-FALL-01 shows the alert", async () => {...})
 
-Those tags reach this script through the result files:
+The display name is used rather than a category or trait because that is what
+actually survives into the result files. The xUnit VSTest adapter does not
+write [Trait] values into a .trx at all: the file contains the test name and
+the outcome and nothing else. A parser that looked for traits would therefore
+report every requirement as untested while the tests passed, which is the
+worst possible failure for a tool whose job is proving coverage.
+
+[Trait("Requirement", ...)] is still worth keeping alongside the display name,
+because it lets a developer run one requirement's tests:
+
+    dotnet test --filter "Requirement=REQ-FALL-03"
+
+Requirement ids reach this script through the result files:
 
     *.trx         .NET test results   (dotnet test --logger trx)
     *.xml         JUnit XML           (pytest --junitxml, Playwright junit reporter)
