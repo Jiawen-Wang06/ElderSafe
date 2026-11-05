@@ -23,14 +23,14 @@ namespace ElderSafe.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("AcknowledgedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("AcknowledgedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("AcknowledgedByCaregiverId")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DispatchedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("DispatchedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("EscalationLevel")
                         .HasColumnType("INTEGER");
@@ -40,11 +40,11 @@ namespace ElderSafe.Api.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("LastNotifiedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("LastNotifiedAt")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("RaisedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("RaisedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("ResidentId")
                         .HasColumnType("TEXT");
@@ -72,8 +72,8 @@ namespace ElderSafe.Api.Migrations
                     b.Property<Guid?>("ActorCaregiverId")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("At")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("At")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Detail")
                         .HasColumnType("TEXT");
@@ -116,8 +116,8 @@ namespace ElderSafe.Api.Migrations
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("LockoutEnd")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("LockoutEnd")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -176,8 +176,8 @@ namespace ElderSafe.Api.Migrations
                     b.Property<double?>("AccuracyMeters")
                         .HasColumnType("REAL");
 
-                    b.Property<DateTimeOffset>("At")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("At")
+                        .HasColumnType("INTEGER");
 
                     b.Property<double?>("Latitude")
                         .HasColumnType("REAL");
