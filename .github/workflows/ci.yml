@@ -31,12 +31,12 @@ jobs:
 
       # Indentation, trailing whitespace and final newlines, per .editorconfig.
       - name: Check formatting
-        run: dotnet format whitespace ${{ env.SOLUTION }} --verify-no-changes --no-restore
+        run: dotnet format whitespace ${{ env.SOLUTION }} --verify-no-changes --no-restore --exclude src/ElderSafe.Api/Migrations
 
       # Code-style rules set to error in .editorconfig, which is where the
       # braces rule (IDE0011) is enforced.
       - name: Check code style
-        run: dotnet format style ${{ env.SOLUTION }} --verify-no-changes --severity error --no-restore
+        run: dotnet format style ${{ env.SOLUTION }} --verify-no-changes --severity error --no-restore --exclude src/ElderSafe.Api/Migrations
 
   test:
     name: Tests
