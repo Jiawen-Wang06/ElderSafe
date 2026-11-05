@@ -29,7 +29,7 @@ public class EscalationPolicyTests
             DispatchedAt: dispatchedAt);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-03 escalates to the next caregiver once the timeout has passed")]
     [Trait("Requirement", "REQ-FALL-03")]
     public void Escalates_to_the_next_caregiver_once_the_timeout_has_passed()
     {
@@ -41,7 +41,7 @@ public class EscalationPolicyTests
         Assert.Equal(1, decision.CaregiverLevel);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-03 does nothing while the current caregiver still has time")]
     [Trait("Requirement", "REQ-FALL-03")]
     public void Does_nothing_while_the_current_caregiver_still_has_time()
     {
@@ -53,7 +53,7 @@ public class EscalationPolicyTests
         Assert.Equal(EscalationAction.None, decision.Action);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-03 measures the timeout from the most recent notification")]
     [Trait("Requirement", "REQ-FALL-03")]
     public void Measures_the_timeout_from_the_most_recent_notification()
     {
@@ -67,7 +67,7 @@ public class EscalationPolicyTests
         Assert.Equal(EscalationAction.None, decision.Action);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-03 never escalates an acknowledged alert however long has passed")]
     [Trait("Requirement", "REQ-FALL-03")]
     public void Never_escalates_an_acknowledged_alert_however_long_has_passed()
     {
@@ -79,7 +79,7 @@ public class EscalationPolicyTests
         Assert.Equal(EscalationAction.None, decision.Action);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-04 escalates through every assigned caregiver by default")]
     [Trait("Requirement", "REQ-FALL-04")]
     public void Escalates_through_every_assigned_caregiver_by_default()
     {
@@ -92,7 +92,7 @@ public class EscalationPolicyTests
         Assert.Equal(2, decision.CaregiverLevel);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-04 stops escalating at the configured limit")]
     [Trait("Requirement", "REQ-FALL-04")]
     public void Stops_escalating_at_the_configured_limit()
     {
@@ -104,7 +104,7 @@ public class EscalationPolicyTests
         Assert.Equal(EscalationAction.None, decision.Action);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-04 treats a limit below one as one")]
     [Trait("Requirement", "REQ-FALL-04")]
     public void Treats_a_limit_below_one_as_one()
     {
@@ -117,7 +117,7 @@ public class EscalationPolicyTests
         Assert.Equal(EscalationAction.None, decision.Action);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-04 treats a limit above the caregiver count as the caregiver count")]
     [Trait("Requirement", "REQ-FALL-04")]
     public void Treats_a_limit_above_the_caregiver_count_as_the_caregiver_count()
     {
@@ -131,7 +131,7 @@ public class EscalationPolicyTests
         Assert.Equal(EscalationAction.None, decision.Action);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-05 does not place an emergency call when the setting is off")]
     [Trait("Requirement", "REQ-FALL-05")]
     public void Does_not_place_an_emergency_call_when_the_setting_is_off()
     {
@@ -145,7 +145,7 @@ public class EscalationPolicyTests
         Assert.Equal(EscalationAction.None, decision.Action);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-06 places an emergency call when the chain is exhausted and the setting is on")]
     [Trait("Requirement", "REQ-FALL-06")]
     public void Places_an_emergency_call_when_the_chain_is_exhausted_and_the_setting_is_on()
     {
@@ -159,7 +159,7 @@ public class EscalationPolicyTests
         Assert.Equal(EscalationAction.PlaceEmergencyCall, decision.Action);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-06 never places a second emergency call for the same alert")]
     [Trait("Requirement", "REQ-FALL-06")]
     public void Never_places_a_second_emergency_call_for_the_same_alert()
     {
@@ -174,7 +174,7 @@ public class EscalationPolicyTests
         Assert.Equal(EscalationAction.None, decision.Action);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-06 treats a resident with no assigned caregivers as an exhausted chain")]
     [Trait("Requirement", "REQ-FALL-06")]
     public void Treats_a_resident_with_no_assigned_caregivers_as_an_exhausted_chain()
     {

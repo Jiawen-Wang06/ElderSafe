@@ -8,7 +8,7 @@ public class ThresholdFallDetectorTests
 
     private static ThresholdFallDetector CreateDetector() => new(new FallDetectorOptions());
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-01 reports a fall when free fall impact and stillness occur in order")]
     [Trait("Requirement", "REQ-FALL-01")]
     public void Reports_a_fall_when_free_fall_impact_and_stillness_occur_in_order()
     {
@@ -25,7 +25,7 @@ public class ThresholdFallDetectorTests
         Assert.NotNull(verdict.DetectedAt);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-01 does not report a fall during ordinary movement")]
     [Trait("Requirement", "REQ-FALL-01")]
     public void Does_not_report_a_fall_during_ordinary_movement()
     {
@@ -38,7 +38,7 @@ public class ThresholdFallDetectorTests
         Assert.Equal(FallOutcome.NoFall, verdict.Outcome);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-01 does not report a fall when an impact has no free fall before it")]
     [Trait("Requirement", "REQ-FALL-01")]
     public void Does_not_report_a_fall_when_an_impact_has_no_free_fall_before_it()
     {
@@ -53,7 +53,7 @@ public class ThresholdFallDetectorTests
         Assert.Equal(FallOutcome.NoFall, verdict.Outcome);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-01 does not report a fall when the resident moves again afterwards")]
     [Trait("Requirement", "REQ-FALL-01")]
     public void Does_not_report_a_fall_when_the_resident_moves_again_afterwards()
     {
@@ -70,7 +70,7 @@ public class ThresholdFallDetectorTests
         Assert.Equal(FallOutcome.NoFall, verdict.Outcome);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-01 does not report a fall when the impact arrives too long after the free fall")]
     [Trait("Requirement", "REQ-FALL-01")]
     public void Does_not_report_a_fall_when_the_impact_arrives_too_long_after_the_free_fall()
     {
@@ -87,7 +87,7 @@ public class ThresholdFallDetectorTests
         Assert.Equal(FallOutcome.NoFall, verdict.Outcome);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-01 reports a fall even when an unrelated dip came earlier in the window")]
     [Trait("Requirement", "REQ-FALL-01")]
     public void Reports_a_fall_even_when_an_unrelated_dip_came_earlier_in_the_window()
     {
@@ -105,7 +105,7 @@ public class ThresholdFallDetectorTests
         Assert.Equal(FallOutcome.Fall, verdict.Outcome);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-01 says not enough data when the stillness period is incomplete")]
     [Trait("Requirement", "REQ-FALL-01")]
     public void Says_not_enough_data_when_the_stillness_period_is_incomplete()
     {
@@ -121,7 +121,7 @@ public class ThresholdFallDetectorTests
         Assert.Equal(FallOutcome.NotEnoughData, verdict.Outcome);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-01 says not enough data for an empty window")]
     [Trait("Requirement", "REQ-FALL-01")]
     public void Says_not_enough_data_for_an_empty_window()
     {
@@ -130,7 +130,7 @@ public class ThresholdFallDetectorTests
         Assert.Equal(FallOutcome.NotEnoughData, verdict.Outcome);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-01 reports a fall when the readings arrive out of order")]
     [Trait("Requirement", "REQ-FALL-01")]
     public void Reports_a_fall_when_the_readings_arrive_out_of_order()
     {
@@ -148,7 +148,7 @@ public class ThresholdFallDetectorTests
         Assert.Equal(FallOutcome.Fall, verdict.Outcome);
     }
 
-    [Fact]
+    [Fact(DisplayName = "REQ-FALL-01 measures magnitude in g regardless of device orientation")]
     [Trait("Requirement", "REQ-FALL-01")]
     public void Measures_magnitude_in_g_regardless_of_device_orientation()
     {
