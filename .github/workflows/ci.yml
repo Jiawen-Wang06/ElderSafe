@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  SOLUTION: ElderSafe.slnx
+
+jobs:
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION }}
+
+      # Indentation, trailing whitespace and final newlines, per .editorconfig.
+      - name: Check formatting
+        run: dotnet format whitespace ${{ env.SOLUTION }} --verify-no-changes --no-restore
+
+      # Code-style rules set to error in .editorconfig, which is where the
+      # braces rule (IDE0011) is enforced.
+      - name: Check code style
+        run: dotnet format style ${{ env.SOLUTION }} --verify-no-changes --severity error --no-restore
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION }}
+
+      - name: Build
+        run: dotnet build ${{ env.SOLUTION }} --configuration Release --no-restore
+
+      # --no-build guarantees the tests run against the binaries just built,
+      # rather than quietly rebuilding something slightly different.
+      - name: Run tests
+        run: >
+          dotnet test ${{ env.SOLUTION }}
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --results-directory artifacts
+
+      # always() so results are kept when tests fail, which is exactly when
+      # they are worth reading. These .trx files are also what
+      # tools/generate_traceability.py reads to build the traceability matrix.
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: artifacts/**/*.trx
+          if-no-files-found: error
