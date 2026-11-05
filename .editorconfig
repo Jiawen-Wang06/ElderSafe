@@ -27,3 +27,10 @@ dotnet_diagnostic.IDE0011.severity = error
 csharp_style_namespace_declarations = file_scoped:suggestion
 csharp_using_directive_placement = outside_namespace:suggestion
 dotnet_sort_system_directives_first = true
+
+# EF Core writes these files, not us. They arrive with a UTF-8 BOM and their
+# own formatting, and the next `dotnet ef migrations add` would undo anything
+# we changed by hand. Marking them generated stops the analyzers reporting
+# style rules against code nobody wrote.
+[src/ElderSafe.Api/Migrations/*.cs]
+generated_code = true
