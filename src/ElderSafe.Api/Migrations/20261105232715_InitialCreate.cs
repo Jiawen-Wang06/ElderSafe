@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -42,7 +42,7 @@ namespace ElderSafe.Api.Migrations
                     PhoneNumber = table.Column<string>(type: "TEXT", nullable: true),
                     PhoneNumberConfirmed = table.Column<bool>(type: "INTEGER", nullable: false),
                     TwoFactorEnabled = table.Column<bool>(type: "INTEGER", nullable: false),
-                    LockoutEnd = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    LockoutEnd = table.Column<long>(type: "INTEGER", nullable: true),
                     LockoutEnabled = table.Column<bool>(type: "INTEGER", nullable: false),
                     AccessFailedCount = table.Column<int>(type: "INTEGER", nullable: false)
                 },
@@ -56,7 +56,7 @@ namespace ElderSafe.Api.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    At = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    At = table.Column<long>(type: "INTEGER", nullable: false),
                     ActorCaregiverId = table.Column<Guid>(type: "TEXT", nullable: true),
                     Action = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
                     ResidentId = table.Column<Guid>(type: "TEXT", nullable: true),
@@ -197,12 +197,12 @@ namespace ElderSafe.Api.Migrations
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     ResidentId = table.Column<Guid>(type: "TEXT", nullable: false),
                     Kind = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
-                    RaisedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    LastNotifiedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    RaisedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    LastNotifiedAt = table.Column<long>(type: "INTEGER", nullable: false),
                     EscalationLevel = table.Column<int>(type: "INTEGER", nullable: false),
-                    AcknowledgedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    AcknowledgedAt = table.Column<long>(type: "INTEGER", nullable: true),
                     AcknowledgedByCaregiverId = table.Column<Guid>(type: "TEXT", nullable: true),
-                    DispatchedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
+                    DispatchedAt = table.Column<long>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -227,7 +227,7 @@ namespace ElderSafe.Api.Migrations
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     ResidentId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    At = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    At = table.Column<long>(type: "INTEGER", nullable: false),
                     AccelerationX = table.Column<double>(type: "REAL", nullable: false),
                     AccelerationY = table.Column<double>(type: "REAL", nullable: false),
                     AccelerationZ = table.Column<double>(type: "REAL", nullable: false),
