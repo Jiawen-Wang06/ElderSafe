@@ -1,0 +1,16 @@
+<Project>
+
+  <!--
+    Applies to every project in the repository.
+
+    EnforceCodeStyleInBuild makes the IDE analyzers run during a normal build,
+    not only inside Visual Studio. Without it, the brace rule in .editorconfig
+    would be enforced in CI but invisible at the keyboard, which is the wrong
+    way round: a rule you only discover after pushing is a rule that wastes
+    your time.
+  -->
+  <PropertyGroup>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+</Project>
