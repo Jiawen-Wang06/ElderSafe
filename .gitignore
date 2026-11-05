@@ -1,0 +1,54 @@
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.user
+.vs/
+
+# .NET
+[Bb]in/
+[Oo]bj/
+[Tt]est[Rr]esult*/
+TestResults/
+*.trx
+coverage/
+*.coverage
+*.coveragexml
+
+# Node / React
+node_modules/
+dist/
+build/
+.vite/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+
+# Data and models (keep datasets out of git; record their source in docs/06-soup.md)
+data/
+*.csv.zip
+# Commit trained model files only when a release needs them, with their metrics:
+# !models/*.onnx
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pfx
+*.pem
+appsettings.Development.json
+local.settings.json
+
+# Infrastructure
+*.bicepparam.local
