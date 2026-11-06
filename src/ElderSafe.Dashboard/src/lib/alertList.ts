@@ -77,7 +77,14 @@ export function mergeAlerts(...batches: readonly AlertView[][]): AlertView[] {
 }
 
 /**
- * How long an alert has been waiting, in whole seconds.
+ * How long an alert went unanswered, in whole seconds.
+ *
+ * The clock stops at acknowledgement (#31). For an open alert this counts up
+ * from when it was raised; for an acknowledged one it is fixed at however
+ * long the response took, because a number that keeps rising after someone
+ * responded measures nothing — and on a screen whose job is to show what
+ * still needs attention, a rising number next to a handled alert reads as a
+ * problem that isn't there.
  *
  * Takes the current time as an argument rather than reading the clock, so a
  * test can assert on it. The dashboard passes a value that ticks once a
@@ -85,28 +92,48 @@ export function mergeAlerts(...batches: readonly AlertView[][]): AlertView[] {
  * person can watch rather than something only a test knows about.
  */
 export function secondsWaiting(alert: AlertView, now: number): number {
-  return Math.max(0, Math.floor((now - Date.parse(alert.raisedAt)) / 1000));
+  const until = alert.acknowledgedAt === null ? now : Date.parse(alert.acknowledgedAt);
+
+  return Math.max(0, Math.floor((until - Date.parse(alert.raisedAt)) / 1000));
 }
 
-/** A short human reading of how long an alert has been waiting. */
-export function describeWait(alert: AlertView, now: number): string {
-  const seconds = secondsWaiting(alert, now);
-
+/** A duration in whole seconds, as the shortest sensible unit. */
+export function describeDuration(seconds: number): string {
   if (seconds < 60) {
-    return `${seconds}s ago`;
+    return `${seconds}s`;
   }
 
   const minutes = Math.floor(seconds / 60);
 
   if (minutes < 60) {
-    return `${minutes}m ago`;
+    return `${minutes}m`;
   }
 
   const hours = Math.floor(minutes / 60);
 
   if (hours < 24) {
-    return `${hours}h ago`;
+    return `${hours}h`;
   }
 
-  return `${Math.floor(hours / 24)}d ago`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+/**
+ * What the wait column says.
+ *
+ * Two different facts share the column, because they answer the same
+ * question at different stages: an open alert is still waiting, so the
+ * reading is how long it has been; an acknowledged one is finished, so the
+ * reading is how long it took. Labelling the second as a response time
+ * rather than an age is what stops a frozen "4m" from looking like a stalled
+ * clock (#31).
+ */
+export function describeWait(alert: AlertView, now: number): string {
+  const elapsed = describeDuration(secondsWaiting(alert, now));
+
+  if (alert.acknowledgedAt === null) {
+    return `${elapsed} ago`;
+  }
+
+  return `answered in ${elapsed}`;
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   byMostRecentFirst,
+  describeDuration,
   describeWait,
   isOpen,
   mergeAlert,
@@ -126,7 +127,7 @@ describe("mergeAlerts", () => {
 });
 
 describe("secondsWaiting", () => {
-  it("counts whole seconds since the alert was raised", () => {
+  it("counts whole seconds since the alert was raised, for an open alert", () => {
     const now = Date.parse("2026-11-06T12:00:04.900Z");
 
     expect(secondsWaiting(alert(), now)).toBe(4);
@@ -137,22 +138,76 @@ describe("secondsWaiting", () => {
 
     expect(secondsWaiting(alert(), now)).toBe(0);
   });
+
+  // #31: the wait kept counting toward "now" after acknowledgement, so an
+  // alert answered in seconds read as minutes old an hour later.
+  it("stops counting at acknowledgement rather than at now", () => {
+    const acknowledged = alert({ acknowledgedAt: "2026-11-06T12:00:08.000Z" });
+    const anHourLater = Date.parse("2026-11-06T13:00:00.000Z");
+
+    expect(secondsWaiting(acknowledged, anHourLater)).toBe(8);
+  });
+
+  it("gives the same answer for an acknowledged alert no matter when now is", () => {
+    const acknowledged = alert({ acknowledgedAt: "2026-11-06T12:00:08.000Z" });
+
+    const soonAfter = secondsWaiting(acknowledged, Date.parse("2026-11-06T12:00:09.000Z"));
+    const muchLater = secondsWaiting(acknowledged, Date.parse("2026-11-09T00:00:00.000Z"));
+
+    expect(soonAfter).toBe(muchLater);
+  });
 });
 
-describe("describeWait", () => {
+describe("describeDuration", () => {
   it("reports seconds under a minute", () => {
-    expect(describeWait(alert(), Date.parse("2026-11-06T12:00:03.000Z"))).toBe("3s ago");
+    expect(describeDuration(3)).toBe("3s");
   });
 
   it("reports minutes under an hour", () => {
-    expect(describeWait(alert(), Date.parse("2026-11-06T12:20:00.000Z"))).toBe("20m ago");
+    expect(describeDuration(20 * 60)).toBe("20m");
   });
 
   it("reports hours under a day", () => {
-    expect(describeWait(alert(), Date.parse("2026-11-06T15:00:00.000Z"))).toBe("3h ago");
+    expect(describeDuration(3 * 60 * 60)).toBe("3h");
   });
 
   it("reports days beyond that", () => {
+    expect(describeDuration(2 * 24 * 60 * 60)).toBe("2d");
+  });
+});
+
+describe("describeWait", () => {
+  it("reports an open alert's age, as before", () => {
+    expect(describeWait(alert(), Date.parse("2026-11-06T12:00:03.000Z"))).toBe("3s ago");
+  });
+
+  it("reports minutes under an hour for an open alert", () => {
+    expect(describeWait(alert(), Date.parse("2026-11-06T12:20:00.000Z"))).toBe("20m ago");
+  });
+
+  it("reports hours under a day for an open alert", () => {
+    expect(describeWait(alert(), Date.parse("2026-11-06T15:00:00.000Z"))).toBe("3h ago");
+  });
+
+  it("reports days beyond that for an open alert", () => {
     expect(describeWait(alert(), Date.parse("2026-11-08T12:00:00.000Z"))).toBe("2d ago");
+  });
+
+  // #31: an acknowledged alert is labelled as answered, with a duration that
+  // does not keep climbing while the caregiver is looking at it.
+  it("reports an acknowledged alert as a response time, not an age", () => {
+    const acknowledged = alert({ acknowledgedAt: "2026-11-06T12:00:08.000Z" });
+
+    expect(describeWait(acknowledged, Date.parse("2026-11-06T12:00:09.000Z"))).toBe(
+      "answered in 8s",
+    );
+  });
+
+  it("keeps reporting the same response time an hour later", () => {
+    const acknowledged = alert({ acknowledgedAt: "2026-11-06T12:00:08.000Z" });
+
+    expect(describeWait(acknowledged, Date.parse("2026-11-06T13:00:00.000Z"))).toBe(
+      "answered in 8s",
+    );
   });
 });
