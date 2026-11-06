@@ -1,4 +1,5 @@
 using ElderSafe.Api.Data.Entities;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ElderSafe.Api.Data;
@@ -90,6 +91,23 @@ public sealed class DemoDataSeeder
             new ResidentCaregiver { ResidentId = MargaretId, CaregiverId = SecondCaregiverId, Order = 1 },
             new ResidentCaregiver { ResidentId = AlbertId, CaregiverId = SecondCaregiverId, Order = 0 }
         };
+
+        var hasher = new PasswordHasher<Caregiver>();
+
+        foreach (var caregiver in caregivers)
+        {
+            // Set directly rather than through UserManager so the seeder stays
+            // constructible without the Identity stack. The fields Identity
+            // needs for sign-in are set explicitly: a missing normalized name
+            // means the user cannot be found, and a missing security stamp
+            // means the sign-in cookie cannot be validated.
+            caregiver.NormalizedUserName = caregiver.UserName!.ToUpperInvariant();
+            caregiver.NormalizedEmail = caregiver.Email?.ToUpperInvariant();
+            caregiver.SecurityStamp = Guid.NewGuid().ToString("N");
+            caregiver.ConcurrencyStamp = Guid.NewGuid().ToString("N");
+            caregiver.EmailConfirmed = true;
+            caregiver.PasswordHash = hasher.HashPassword(caregiver, _options.CaregiverPassword);
+        }
 
         _context.Users.AddRange(caregivers);
         _context.Residents.AddRange(residents);
