@@ -11,6 +11,7 @@ public sealed record ResidentSettingsView(
     string DisplayName,
     int? EscalationLimit,
     bool EmergencyCallEnabled,
+    string? EmergencyContactPhoneNumber,
     int AssignedCaregiverCount);
 
 /// <summary>A caregiver assigned to a resident.</summary>
@@ -19,6 +20,18 @@ public sealed record AssignedCaregiverView(
     string DisplayName,
     string UserName,
     int Order);
+
+/// <summary>
+/// Whether an exact-match caregiver email lookup found an account
+/// (REQ-CFG-07).
+/// </summary>
+/// <remarks>
+/// Deliberately thin: only whether the exact string matches and, if so, the
+/// caregiver's display name. No partial matches and no list of candidates,
+/// so the lookup cannot be used to enumerate registered caregivers by typing
+/// short prefixes (RISK-19) — it answers only the one email actually typed.
+/// </remarks>
+public sealed record CaregiverLookupResult(bool Found, string? DisplayName);
 
 /// <summary>What a configuration change produced.</summary>
 public enum ConfigurationOutcome
@@ -34,7 +47,13 @@ public enum ConfigurationOutcome
     WouldLeaveNoCaregivers,
 
     /// <summary>Refused because the escalation limit was below one.</summary>
-    LimitBelowOne
+    LimitBelowOne,
+
+    /// <summary>Refused because the escalation limit was above the cap.</summary>
+    LimitAboveMax,
+
+    /// <summary>Refused because the emergency contact number was too long.</summary>
+    EmergencyContactPhoneNumberTooLong
 }
 
 /// <summary>
@@ -59,6 +78,21 @@ public enum ConfigurationOutcome
 /// </remarks>
 public sealed class ResidentConfigurationService
 {
+    /// <summary>
+    /// The highest escalation limit a resident may set. A sanity bound on
+    /// the field, not a risk control: a higher limit does not itself weaken
+    /// the resident's protection the way a lower one does.
+    /// </summary>
+    public const int MaxEscalationLimit = 10;
+
+    /// <summary>
+    /// The longest emergency contact number accepted. The field is free text
+    /// shown back to the resident and carried into a log line, never dialed,
+    /// so this exists only to keep the stored value sane, not to enforce any
+    /// particular phone-number format.
+    /// </summary>
+    public const int MaxEmergencyContactPhoneNumberLength = 32;
+
     private readonly ElderSafeDbContext _context;
     private readonly IAlertNotifier _notifier;
     private readonly TimeProvider _timeProvider;
@@ -97,6 +131,7 @@ public sealed class ResidentConfigurationService
             resident.DisplayName,
             resident.EscalationLimit,
             resident.EmergencyCallEnabled,
+            resident.EmergencyContactPhoneNumber,
             count);
     }
 
@@ -105,13 +140,33 @@ public sealed class ResidentConfigurationService
         Guid actorAccountId,
         int? escalationLimit,
         bool emergencyCallEnabled,
+        string? emergencyContactPhoneNumber,
         CancellationToken cancellationToken = default)
     {
         // Null means "every assigned caregiver", which is the default and is
-        // allowed. A number below one would mean nobody is ever notified.
+        // allowed. A number below one would mean nobody is ever notified; a
+        // number above the cap is a data-sanity problem, not a safety one
+        // (MaxEscalationLimit).
         if (escalationLimit is < 1)
         {
             return ConfigurationOutcome.LimitBelowOne;
+        }
+
+        if (escalationLimit > MaxEscalationLimit)
+        {
+            return ConfigurationOutcome.LimitAboveMax;
+        }
+
+        // Blank input means "not configured", stored as null rather than an
+        // empty string, so GetSettingsAsync and the frontend have one way to
+        // ask "is anything set" instead of two.
+        var normalizedPhoneNumber = string.IsNullOrWhiteSpace(emergencyContactPhoneNumber)
+            ? null
+            : emergencyContactPhoneNumber.Trim();
+
+        if (normalizedPhoneNumber is { Length: > MaxEmergencyContactPhoneNumberLength })
+        {
+            return ConfigurationOutcome.EmergencyContactPhoneNumberTooLong;
         }
 
         var resident = await _context.Residents
@@ -122,17 +177,48 @@ public sealed class ResidentConfigurationService
             return ConfigurationOutcome.ResidentNotFound;
         }
 
-        var before = $"limit={Describe(resident.EscalationLimit)}, emergencyCall={resident.EmergencyCallEnabled}";
+        var before =
+            $"limit={Describe(resident.EscalationLimit)}, emergencyCall={resident.EmergencyCallEnabled}, " +
+            $"emergencyContact={Describe(resident.EmergencyContactPhoneNumber)}";
 
         resident.EscalationLimit = escalationLimit;
         resident.EmergencyCallEnabled = emergencyCallEnabled;
+        resident.EmergencyContactPhoneNumber = normalizedPhoneNumber;
 
-        var after = $"limit={Describe(escalationLimit)}, emergencyCall={emergencyCallEnabled}";
+        var after =
+            $"limit={Describe(escalationLimit)}, emergencyCall={emergencyCallEnabled}, " +
+            $"emergencyContact={Describe(normalizedPhoneNumber)}";
 
         await RecordAndAnnounceAsync(
             residentId, actorAccountId, "ChangedAlertSettings", $"{before} -> {after}", cancellationToken);
 
         return ConfigurationOutcome.Changed;
+    }
+
+    /// <summary>
+    /// Checks for a caregiver account with exactly this email (REQ-CFG-07).
+    /// </summary>
+    /// <remarks>
+    /// Scoped to the same authorization as every other change here even
+    /// though it changes nothing: it exists only to support adding a
+    /// caregiver, so it is gated the same way adding one is, rather than
+    /// being reachable by any authenticated account as a general-purpose
+    /// directory lookup (RISK-19).
+    /// </remarks>
+    public async Task<CaregiverLookupResult> LookupCaregiverAsync(
+        string email,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = email.Trim().ToUpperInvariant();
+
+        var caregiver = await _context.Users
+            .Where(u => u.NormalizedUserName == normalized && u.AccountType == AccountType.Caregiver)
+            .Select(u => u.DisplayName)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return caregiver is null
+            ? new CaregiverLookupResult(false, null)
+            : new CaregiverLookupResult(true, caregiver);
     }
 
     public async Task<IReadOnlyList<AssignedCaregiverView>?> GetCaregiversAsync(
@@ -252,6 +338,11 @@ public sealed class ResidentConfigurationService
         }
 
         return limit.Value.ToString();
+    }
+
+    private static string Describe(string? emergencyContactPhoneNumber)
+    {
+        return emergencyContactPhoneNumber ?? "not configured";
     }
 
     /// <summary>

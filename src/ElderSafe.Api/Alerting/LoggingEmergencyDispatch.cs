@@ -25,13 +25,14 @@ public sealed class LoggingEmergencyDispatch : IEmergencyDispatch
     {
         _logger.LogWarning(
             "SIMULATED emergency call for alert {AlertId}, resident {ResidentId}, " +
-            "raised at {RaisedAt}, last known position {Latitude},{Longitude}. " +
-            "No call was placed.",
+            "raised at {RaisedAt}, last known position {Latitude},{Longitude}, " +
+            "contact number {ContactPhoneNumber}. No call was placed.",
             request.AlertId,
             request.ResidentId,
             request.RaisedAt,
             request.Latitude,
-            request.Longitude);
+            request.Longitude,
+            request.ContactPhoneNumber ?? "not configured");
 
         return Task.FromResult(true);
     }

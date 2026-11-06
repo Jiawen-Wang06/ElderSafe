@@ -34,7 +34,10 @@ public class Resident
 
     /// <summary>
     /// How many caregivers an alert may travel through (REQ-FALL-04). Null
-    /// means every assigned caregiver, which is the default.
+    /// means every assigned caregiver, which is the default. Bounded to at
+    /// most 10 (REQ-CFG-01) as a data-sanity cap on this field, not a safety
+    /// control: a higher limit does not itself weaken the resident's
+    /// protection the way a lower one does.
     /// </summary>
     public int? EscalationLimit { get; set; }
 
@@ -43,6 +46,22 @@ public class Resident
     /// (REQ-FALL-05). Off by default: an unwanted call is RISK-09.
     /// </summary>
     public bool EmergencyCallEnabled { get; set; }
+
+    /// <summary>
+    /// A phone number the resident associates with the emergency-call
+    /// setting (REQ-CFG-06). Null when not configured.
+    /// </summary>
+    /// <remarks>
+    /// Stored and shown for the resident's own reference, and carried into
+    /// the simulated dispatch log entry. It is never passed to anything
+    /// capable of placing a real call: the project's only dispatch
+    /// implementation, <see cref="Alerting.LoggingEmergencyDispatch"/>, only
+    /// logs, and that does not change with this field. A resident who has
+    /// not set this sees it reported as not configured rather than falling
+    /// back to a displayed number, since this project must never present a
+    /// real emergency number as something it would actually dial.
+    /// </remarks>
+    public string? EmergencyContactPhoneNumber { get; set; }
 
     /// <summary>Caregivers assigned to this resident, in escalation order.</summary>
     public ICollection<ResidentCaregiver> Caregivers { get; set; } = new List<ResidentCaregiver>();

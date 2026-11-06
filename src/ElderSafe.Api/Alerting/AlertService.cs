@@ -273,12 +273,22 @@ public sealed class AlertService
             .OrderByDescending(r => r.At)
             .FirstOrDefaultAsync(cancellationToken);
 
+        // Read directly rather than through alert.Resident, which is not
+        // guaranteed to be loaded here. Only the configured number is read,
+        // never anything that would let this reach a real dial path — the
+        // dispatch interface still has no implementation that places calls.
+        var contactPhoneNumber = await _context.Residents
+            .Where(r => r.Id == alert.ResidentId)
+            .Select(r => r.EmergencyContactPhoneNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+
         var request = new EmergencyCallRequest(
             alert.Id,
             alert.ResidentId,
             lastKnownPosition?.Latitude,
             lastKnownPosition?.Longitude,
-            alert.RaisedAt);
+            alert.RaisedAt,
+            contactPhoneNumber);
 
         var placed = await _dispatch.PlaceCallAsync(request, cancellationToken);
 

@@ -85,6 +85,30 @@ export interface AlertSummary {
   buckets: SummaryBucket[];
 }
 
+/** A resident's alerting configuration, as shown and edited (REQ-CFG-01, REQ-CFG-06). */
+export interface ResidentSettingsView {
+  residentId: string;
+  displayName: string;
+  escalationLimit: number | null;
+  emergencyCallEnabled: boolean;
+  emergencyContactPhoneNumber: string | null;
+  assignedCaregiverCount: number;
+}
+
+/** A caregiver assigned to a resident. */
+export interface AssignedCaregiverView {
+  caregiverId: string;
+  displayName: string;
+  userName: string;
+  order: number;
+}
+
+/** Whether an exact-match caregiver email lookup found an account (REQ-CFG-07). */
+export interface CaregiverLookupResult {
+  found: boolean;
+  displayName: string | null;
+}
+
 /**
  * A request the API refused, carrying enough to show the person why.
  *
@@ -234,5 +258,51 @@ export const api = {
     return request<void>(`/api/residents/${residentId}/simulate/${scenario}`, {
       method: "POST",
     });
+  },
+
+  residentSettings(residentId: string): Promise<ResidentSettingsView> {
+    return request<ResidentSettingsView>(`/api/residents/${residentId}/settings`);
+  },
+
+  updateResidentSettings(
+    residentId: string,
+    settings: {
+      escalationLimit: number | null;
+      emergencyCallEnabled: boolean;
+      emergencyContactPhoneNumber: string | null;
+    },
+  ): Promise<void> {
+    return request<void>(`/api/residents/${residentId}/settings`, {
+      method: "PUT",
+      body: JSON.stringify({
+        escalationLimit: settings.escalationLimit,
+        emergencyCallEnabled: settings.emergencyCallEnabled,
+        emergencyContactPhoneNumber: settings.emergencyContactPhoneNumber,
+      }),
+    });
+  },
+
+  caregivers(residentId: string): Promise<AssignedCaregiverView[]> {
+    return request<AssignedCaregiverView[]>(`/api/residents/${residentId}/caregivers`);
+  },
+
+  assignCaregiver(residentId: string, userName: string): Promise<void> {
+    return request<void>(`/api/residents/${residentId}/caregivers`, {
+      method: "POST",
+      body: JSON.stringify({ userName }),
+    });
+  },
+
+  removeCaregiver(residentId: string, caregiverId: string): Promise<void> {
+    return request<void>(`/api/residents/${residentId}/caregivers/${caregiverId}`, {
+      method: "DELETE",
+    });
+  },
+
+  lookupCaregiver(residentId: string, email: string): Promise<CaregiverLookupResult> {
+    const query = new URLSearchParams({ email });
+    return request<CaregiverLookupResult>(
+      `/api/residents/${residentId}/caregivers/lookup?${query}`,
+    );
   },
 };
