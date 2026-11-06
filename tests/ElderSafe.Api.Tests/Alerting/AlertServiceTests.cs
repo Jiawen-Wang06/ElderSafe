@@ -349,13 +349,14 @@ public class AlertServiceTests : IDisposable
         return resident;
     }
 
-    private Caregiver AddCaregiver(Guid residentId, int order)
+    private UserAccount AddCaregiver(Guid residentId, int order)
     {
-        var caregiver = new Caregiver
+        var caregiver = new UserAccount
         {
             Id = Guid.NewGuid(),
             UserName = $"{Guid.NewGuid():N}@example.invalid",
-            DisplayName = $"Caregiver {order}"
+            DisplayName = $"Caregiver {order}",
+            AccountType = AccountType.Caregiver
         };
 
         _context.Users.Add(caregiver);
@@ -429,6 +430,8 @@ public class AlertServiceTests : IDisposable
 
         public List<AlertView> Updated { get; } = new();
 
+        public List<ResidentConfigurationChange> ConfigurationChanges { get; } = new();
+
         public bool Throws { get; set; }
 
         public Task AlertRaisedAsync(AlertView alert, CancellationToken cancellationToken = default)
@@ -451,6 +454,15 @@ public class AlertServiceTests : IDisposable
             }
 
             Updated.Add(alert);
+
+            return Task.CompletedTask;
+        }
+
+        public Task ConfigurationChangedAsync(
+            ResidentConfigurationChange change,
+            CancellationToken cancellationToken = default)
+        {
+            ConfigurationChanges.Add(change);
 
             return Task.CompletedTask;
         }
