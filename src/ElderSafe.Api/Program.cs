@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddSignalR();
 
 builder.Services.AddDbContext<ElderSafeDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("ElderSafe")
@@ -87,6 +88,8 @@ builder.Services.AddAuthentication()
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentCaregiver, HttpContextCurrentCaregiver>();
+builder.Services.AddScoped<IResidentAccess, ResidentAccess>();
+builder.Services.AddSingleton<IAlertNotifier, SignalRAlertNotifier>();
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IEmergencyDispatch, LoggingEmergencyDispatch>();
@@ -115,6 +118,8 @@ builder.Services.AddScoped<AlertService>(provider =>
         provider.GetRequiredService<IEmergencyDispatch>(),
         provider.GetRequiredService<TimeProvider>(),
         provider.GetRequiredService<IOptions<AlertServiceOptions>>().Value,
+        provider.GetRequiredService<IResidentAccess>(),
+        provider.GetRequiredService<IAlertNotifier>(),
         provider.GetRequiredService<ILogger<AlertService>>()));
 
 builder.Services.AddScoped<ReadingIngestionService>(provider =>
@@ -151,6 +156,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<AlertsHub>("/hubs/alerts");
 
 app.Run();
 
