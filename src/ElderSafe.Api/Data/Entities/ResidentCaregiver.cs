@@ -18,7 +18,7 @@ public class ResidentCaregiver
 
     public Guid CaregiverId { get; set; }
 
-    public Caregiver Caregiver { get; set; } = null!;
+    public UserAccount Caregiver { get; set; } = null!;
 
     /// <summary>
     /// Zero-based position in the escalation order. Position 0 is notified

@@ -19,6 +19,7 @@ public sealed class DemoDataSeeder
     private static readonly Guid FirstCaregiverId = new("33333333-3333-3333-3333-333333333333");
     private static readonly Guid SecondCaregiverId = new("44444444-4444-4444-4444-444444444444");
     private static readonly Guid DemoDeviceId = new("55555555-5555-5555-5555-555555555555");
+    private static readonly Guid ResidentAccountId = new("66666666-6666-6666-6666-666666666666");
 
     private readonly ElderSafeDbContext _context;
     private readonly DemoDataOptions _options;
@@ -47,19 +48,29 @@ public sealed class DemoDataSeeder
 
         var caregivers = new[]
         {
-            new Caregiver
+            new UserAccount
             {
                 Id = FirstCaregiverId,
                 UserName = "demo.caregiver@example.invalid",
                 Email = "demo.caregiver@example.invalid",
-                DisplayName = "Demo Caregiver"
+                DisplayName = "Demo Caregiver",
+                AccountType = AccountType.Caregiver
             },
-            new Caregiver
+            new UserAccount
             {
                 Id = SecondCaregiverId,
                 UserName = "demo.nurse@example.invalid",
                 Email = "demo.nurse@example.invalid",
-                DisplayName = "Demo Nurse"
+                DisplayName = "Demo Nurse",
+                AccountType = AccountType.Caregiver
+            },
+            new UserAccount
+            {
+                Id = ResidentAccountId,
+                UserName = "demo.resident@example.invalid",
+                Email = "demo.resident@example.invalid",
+                DisplayName = "Resident A",
+                AccountType = AccountType.Resident
             }
         };
 
@@ -69,6 +80,7 @@ public sealed class DemoDataSeeder
             {
                 Id = MargaretId,
                 DisplayName = "Resident A",
+                AccountId = ResidentAccountId,
                 SafeZoneLatitude = 43.4516,
                 SafeZoneLongitude = -80.4925,
                 SafeZoneRadiusMeters = 100,
@@ -93,7 +105,7 @@ public sealed class DemoDataSeeder
             new ResidentCaregiver { ResidentId = AlbertId, CaregiverId = SecondCaregiverId, Order = 0 }
         };
 
-        var hasher = new PasswordHasher<Caregiver>();
+        var hasher = new PasswordHasher<UserAccount>();
 
         foreach (var caregiver in caregivers)
         {

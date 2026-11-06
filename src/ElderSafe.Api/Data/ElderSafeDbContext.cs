@@ -11,7 +11,7 @@ namespace ElderSafe.Api.Data;
 /// tables share one context and one migration history (ADR-006).
 /// </summary>
 public class ElderSafeDbContext
-    : IdentityDbContext<Caregiver, IdentityRole<Guid>, Guid>
+    : IdentityDbContext<UserAccount, IdentityRole<Guid>, Guid>
 {
     public ElderSafeDbContext(DbContextOptions<ElderSafeDbContext> options)
         : base(options)
@@ -117,11 +117,23 @@ public class ElderSafeDbContext
         builder.Entity<Resident>(entity =>
         {
             entity.Property(r => r.DisplayName).HasMaxLength(200).IsRequired();
+
+            entity.HasOne(r => r.Account)
+                .WithMany()
+                .HasForeignKey(r => r.AccountId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // One resident per account: an account holds one person's data.
+            entity.HasIndex(r => r.AccountId).IsUnique();
         });
 
-        builder.Entity<Caregiver>(entity =>
+        builder.Entity<UserAccount>(entity =>
         {
             entity.Property(c => c.DisplayName).HasMaxLength(200).IsRequired();
+
+            // Stored as text so the data stays readable and reordering the
+            // enum cannot silently change what an account is.
+            entity.Property(c => c.AccountType).HasConversion<string>().HasMaxLength(32);
         });
     }
 

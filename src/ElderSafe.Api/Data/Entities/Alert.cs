@@ -37,7 +37,7 @@ public class Alert
 
     public Guid? AcknowledgedByCaregiverId { get; set; }
 
-    public Caregiver? AcknowledgedByCaregiver { get; set; }
+    public UserAccount? AcknowledgedByCaregiver { get; set; }
 
     /// <summary>
     /// When an emergency call was placed for this alert, if one was. Its

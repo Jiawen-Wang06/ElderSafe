@@ -10,6 +10,18 @@ public class Resident
     public string DisplayName { get; set; } = string.Empty;
 
     /// <summary>
+    /// The resident account that holds and configures this resident's data.
+    /// </summary>
+    /// <remarks>
+    /// Null for a resident created by seeding before any account existed.
+    /// Only this account may change the settings below; caregivers read, they
+    /// do not configure.
+    /// </remarks>
+    public Guid? AccountId { get; set; }
+
+    public UserAccount? Account { get; set; }
+
+    /// <summary>
     /// Centre of the safe zone. Null when no zone has been configured yet,
     /// which is a real state: wandering cannot be evaluated until an
     /// authorized user sets one (REQ-WANDER-07).

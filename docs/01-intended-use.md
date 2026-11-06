@@ -26,9 +26,22 @@ ElderSafe alerts a caregiver when a monitored older adult may have fallen or has
 
 Users are assumed to be adults with basic smartphone or web-browser skills. No clinical training is required to acknowledge an alert.
 
+**Who holds the resident's account.** Each resident's data is held by a
+resident account, which configures who receives their alerts, how far an
+unanswered alert travels, and whether it may end in an emergency call. That
+account is intended to be set up and operated by a caregiver or family member
+acting for the resident, not by a resident living with dementia. A resident
+who is able to manage their own care may hold it themselves.
+
+This expectation is an instruction, and ISO 14971 treats instructions as the
+weakest form of risk control. The software therefore does not rely on it
+alone: the last caregiver cannot be removed, the escalation limit cannot fall
+below one, and every configuration change is recorded and announced to the
+remaining caregivers (see RISK-17).
+
 ## 3. Patient population
 
-Older adults who live at home or in a care setting, including people living with dementia who are at risk of wandering. The resident wears a device (simulated in this project) and does not operate the system.
+Older adults who live at home or in a care setting, including people living with dementia who are at risk of wandering. The resident wears a device (simulated in this project). A resident living with dementia is not expected to operate the dashboard; their account is held on their behalf, as described in section 2.
 
 ## 4. What the software does
 
@@ -139,3 +152,4 @@ Demo data is synthetic. A real deployment would be subject to Ontario's PHIPA an
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-11-05 | First draft |
+| 0.2 | 2026-11-06 | Section 2 and 3 corrected: a resident account now exists and configures the resident's alerting, so residents are no longer only wearers of a device |

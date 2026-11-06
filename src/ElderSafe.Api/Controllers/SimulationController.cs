@@ -62,7 +62,7 @@ public sealed class SimulationController : ControllerBase
             return Unauthorized();
         }
 
-        if (!await _residentAccess.IsAssignedAsync(caregiverId.Value, residentId, cancellationToken))
+        if (!await _residentAccess.CanViewAsync(caregiverId.Value, residentId, cancellationToken))
         {
             return NotFound();
         }

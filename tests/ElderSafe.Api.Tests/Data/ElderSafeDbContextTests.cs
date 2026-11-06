@@ -39,13 +39,14 @@ public class ElderSafeDbContextTests : IDisposable
         return resident;
     }
 
-    private Caregiver AddCaregiver(string name)
+    private UserAccount AddCaregiver(string name)
     {
-        var caregiver = new Caregiver
+        var caregiver = new UserAccount
         {
             Id = Guid.NewGuid(),
             UserName = $"{Guid.NewGuid():N}@example.invalid",
-            DisplayName = name
+            DisplayName = name,
+            AccountType = AccountType.Caregiver
         };
 
         _context.Users.Add(caregiver);

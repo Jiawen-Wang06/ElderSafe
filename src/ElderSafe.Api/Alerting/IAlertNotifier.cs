@@ -18,6 +18,13 @@ namespace ElderSafe.Api.Alerting;
 /// RISK-16 and why ADR-007 exists.
 /// </para>
 /// </remarks>
+/// <summary>A change to a resident's configuration, announced to caregivers.</summary>
+public sealed record ResidentConfigurationChange(
+    Guid ResidentId,
+    string Action,
+    string Detail,
+    DateTimeOffset At);
+
 public interface IAlertNotifier
 {
     /// <summary>A new alert has been raised.</summary>
@@ -25,4 +32,16 @@ public interface IAlertNotifier
 
     /// <summary>An existing alert has been escalated or acknowledged.</summary>
     Task AlertUpdatedAsync(AlertView alert, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A resident's configuration has changed.
+    /// </summary>
+    /// <remarks>
+    /// Announced so that a change which weakens the safety net cannot be
+    /// silent: a caregiver who is removed, or who is left behind when
+    /// emergency calling is switched off, is told.
+    /// </remarks>
+    Task ConfigurationChangedAsync(
+        ResidentConfigurationChange change,
+        CancellationToken cancellationToken = default);
 }
