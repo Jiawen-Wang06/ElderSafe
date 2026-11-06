@@ -36,6 +36,8 @@
 | REQ-FALL-04 | An authorized user shall be able to configure how many caregivers an alert escalates to. | Value is between 1 and the number of assigned caregivers. Escalation stops after that many. Default is all assigned caregivers. The change is recorded in the audit log. | UN-04, UN-09; RISK-07 | Automated test |
 | REQ-FALL-05 | An authorized user shall be able to configure whether an emergency call is made when all configured caregivers fail to respond. | Default is off. The setting is saved per resident. The change is recorded in the audit log. | UN-04, UN-09; RISK-09 | Automated test |
 | REQ-FALL-06 | If the emergency-call setting is on and all configured caregivers have failed to respond, the system shall make an emergency call. | Exactly one call is requested per incident. It carries the resident's identifier and last known location. No call is requested if the setting is off or any caregiver acknowledged. A failed call attempt is surfaced to caregivers. | UN-04; RISK-09, RISK-10, RISK-11 | Integration test with a simulated dispatch service |
+| REQ-FALL-07 | A caregiver shall be able to acknowledge an alert for a resident they are assigned to. | Acknowledgement records which caregiver acted and when, taken from the session and never from the request. An acknowledged alert is not escalated afterwards. Acknowledging an alert for a resident the caregiver is not assigned to is refused, indistinguishably from the alert not existing. A second acknowledgement does not overwrite the first. | UN-04; RISK-06, RISK-12 | Integration test |
+| REQ-FALL-08 | A caregiver shall be able to review the sensor data that produced an alert, against the thresholds applied to it. | The trace covers the window the detector judged plus context either side. The thresholds reported are the ones in effect, not values fixed in the client. Access follows the same per-resident rule as every other caregiver-facing path. | UN-04; RISK-02, RISK-12 | Integration test |
 
 ## 3. Wandering detection
 
@@ -108,3 +110,4 @@
 | 0.6 | 2026-11-05 | REQ-SEC-04 added: readings accepted only from a paired, authenticated device |
 | 0.7 | 2026-11-05 | REQ-NOTIFY-01 added: notification must not depend on an open session. Deferred, and recorded as unverified |
 | 0.8 | 2026-11-06 | REQ-CFG-01 to 05 added. REQ-FALL-04 and REQ-FALL-05 had been showing as verified while only the honouring of those settings was tested and nothing could change them |
+| 0.9 | 2026-11-06 | REQ-FALL-07 and REQ-FALL-08 added. Acknowledgement had been assumed by REQ-FALL-03 without any requirement stating that a caregiver can perform it, and the endpoint was built against that assumption. Reviewing the data behind an alert was not specified at all |
