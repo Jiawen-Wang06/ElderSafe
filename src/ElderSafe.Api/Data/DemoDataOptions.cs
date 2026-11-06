@@ -24,4 +24,14 @@ public sealed class DemoDataOptions
     /// default so these credentials exist nowhere else (ADR-006).
     /// </remarks>
     public string CaregiverPassword { get; set; } = "Demo-Passw0rd!";
+
+    /// <summary>
+    /// Key given to the seeded demo device.
+    /// </summary>
+    /// <remarks>
+    /// A real device key is generated at pairing and shown once. This one is
+    /// fixed so the demo and its tests can use it, which is acceptable only
+    /// because seeding is off by default and the demo holds nothing real.
+    /// </remarks>
+    public string DeviceKey { get; set; } = "demo-device-key-not-for-real-use";
 }

@@ -158,6 +158,41 @@ namespace ElderSafe.Api.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("ElderSafe.Api.Data.Entities.Device", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("KeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("PairedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ResidentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("RevokedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KeyHash")
+                        .IsUnique();
+
+                    b.HasIndex("ResidentId");
+
+                    b.ToTable("Devices");
+                });
+
             modelBuilder.Entity("ElderSafe.Api.Data.Entities.Reading", b =>
                 {
                     b.Property<Guid>("Id")
@@ -387,6 +422,17 @@ namespace ElderSafe.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("AcknowledgedByCaregiver");
+
+                    b.Navigation("Resident");
+                });
+
+            modelBuilder.Entity("ElderSafe.Api.Data.Entities.Device", b =>
+                {
+                    b.HasOne("ElderSafe.Api.Data.Entities.Resident", "Resident")
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Resident");
                 });

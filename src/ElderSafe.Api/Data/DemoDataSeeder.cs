@@ -18,6 +18,7 @@ public sealed class DemoDataSeeder
     private static readonly Guid AlbertId = new("22222222-2222-2222-2222-222222222222");
     private static readonly Guid FirstCaregiverId = new("33333333-3333-3333-3333-333333333333");
     private static readonly Guid SecondCaregiverId = new("44444444-4444-4444-4444-444444444444");
+    private static readonly Guid DemoDeviceId = new("55555555-5555-5555-5555-555555555555");
 
     private readonly ElderSafeDbContext _context;
     private readonly DemoDataOptions _options;
@@ -109,9 +110,19 @@ public sealed class DemoDataSeeder
             caregiver.PasswordHash = hasher.HashPassword(caregiver, _options.CaregiverPassword);
         }
 
+        var device = new Device
+        {
+            Id = DemoDeviceId,
+            Name = "Demo band",
+            ResidentId = MargaretId,
+            KeyHash = ElderSafe.Api.Security.DeviceKey.Hash(_options.DeviceKey),
+            PairedAt = DateTimeOffset.UtcNow
+        };
+
         _context.Users.AddRange(caregivers);
         _context.Residents.AddRange(residents);
         _context.ResidentCaregivers.AddRange(assignments);
+        _context.Devices.Add(device);
 
         await _context.SaveChangesAsync(cancellationToken);
 

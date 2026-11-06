@@ -11,6 +11,7 @@ namespace ElderSafe.Api.Tests.Security;
 public sealed class ElderSafeWebAppFactory : WebApplicationFactory<Program>
 {
     public const string DemoPassword = "Demo-Passw0rd!";
+    public const string DemoDeviceKey = "test-device-key-not-for-real-use";
 
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
 
@@ -25,6 +26,7 @@ public sealed class ElderSafeWebAppFactory : WebApplicationFactory<Program>
 
         builder.UseSetting("DemoData:Enabled", "true");
         builder.UseSetting("DemoData:CaregiverPassword", DemoPassword);
+        builder.UseSetting("DemoData:DeviceKey", DemoDeviceKey);
         builder.UseSetting("Alerting:EscalationSweepInterval", "01:00:00");
 
         builder.ConfigureServices(services =>

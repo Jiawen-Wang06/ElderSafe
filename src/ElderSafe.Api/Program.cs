@@ -77,6 +77,14 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
 });
 
+// A second scheme beside caregiver sign-in: a wearable is a different kind of
+// caller, and giving it a caregiver account would let a device credential read
+// resident data as well as post readings.
+builder.Services.AddAuthentication()
+    .AddScheme<DeviceAuthenticationOptions, DeviceAuthenticationHandler>(
+        DeviceAuthenticationHandler.SchemeName,
+        _ => { });
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentCaregiver, HttpContextCurrentCaregiver>();
 

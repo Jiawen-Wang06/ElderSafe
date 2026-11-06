@@ -28,6 +28,8 @@ public class ElderSafeDbContext
 
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
+    public DbSet<Device> Devices => Set<Device>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
         base.ConfigureConventions(builder);
@@ -95,6 +97,21 @@ public class ElderSafeDbContext
         {
             entity.Property(a => a.Action).HasMaxLength(64).IsRequired();
             entity.HasIndex(a => a.At);
+        });
+
+        builder.Entity<Device>(entity =>
+        {
+            entity.Property(d => d.Name).HasMaxLength(100).IsRequired();
+            entity.Property(d => d.KeyHash).HasMaxLength(64).IsRequired();
+
+            // Unique so one key cannot be paired to two residents, and indexed
+            // because every reading authenticates through this lookup.
+            entity.HasIndex(d => d.KeyHash).IsUnique();
+
+            entity.HasOne(d => d.Resident)
+                .WithMany()
+                .HasForeignKey(d => d.ResidentId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<Resident>(entity =>
