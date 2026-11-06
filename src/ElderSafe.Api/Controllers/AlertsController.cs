@@ -19,11 +19,16 @@ namespace ElderSafe.Api.Controllers;
 public sealed class AlertsController : ControllerBase
 {
     private readonly AlertService _alertService;
+    private readonly AlertTraceService _traceService;
     private readonly ICurrentCaregiver _currentCaregiver;
 
-    public AlertsController(AlertService alertService, ICurrentCaregiver currentCaregiver)
+    public AlertsController(
+        AlertService alertService,
+        AlertTraceService traceService,
+        ICurrentCaregiver currentCaregiver)
     {
         _alertService = alertService;
+        _traceService = traceService;
         _currentCaregiver = currentCaregiver;
     }
 
@@ -52,6 +57,32 @@ public sealed class AlertsController : ControllerBase
         }
 
         return Ok(alerts);
+    }
+
+    /// <summary>
+    /// The sensor data behind one alert, with the thresholds applied to it
+    /// (REQ-FALL-08).
+    /// </summary>
+    [HttpGet("alerts/{alertId:guid}/trace")]
+    public async Task<ActionResult<AlertTrace>> GetTrace(
+        Guid alertId,
+        CancellationToken cancellationToken)
+    {
+        var caregiverId = _currentCaregiver.Id;
+
+        if (caregiverId is null)
+        {
+            return Unauthorized();
+        }
+
+        var trace = await _traceService.GetAsync(caregiverId.Value, alertId, cancellationToken);
+
+        if (trace is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(trace);
     }
 
     [HttpPost("alerts/{alertId:guid}/acknowledge")]
