@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router";
-import { useAuth } from "@/auth/AuthContext";
+import { useAuth } from "@/auth/useAuth";
 import { RequireAuth } from "@/auth/RequireAuth";
 import { AppLayout } from "@/AppLayout";
 import { SignInPage } from "@/pages/SignInPage";

@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
@@ -25,5 +26,13 @@ export default defineConfig({
   build: {
     outDir: "../ElderSafe.Api/wwwroot",
     emptyOutDir: true,
+  },
+
+  // Node rather than a browser environment: what is tested here is decision
+  // logic, which should not need a DOM to exercise. A component test will
+  // need jsdom and can declare it per file when that day comes.
+  test: {
+    environment: "node",
+    include: ["src/**/*.test.ts"],
   },
 });

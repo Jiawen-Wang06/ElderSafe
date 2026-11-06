@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router";
 import type { ReactNode } from "react";
-import { useAuth } from "@/auth/AuthContext";
+import { useAuth } from "@/auth/useAuth";
 
 /**
  * Keeps unauthenticated visitors off a route.

@@ -1,17 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { api } from "@/lib/api";
 import type { CurrentAccount } from "@/lib/api";
-
-interface AuthValue {
-  account: CurrentAccount | null;
-  loading: boolean;
-  signIn: (userName: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  refresh: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthValue | null>(null);
+import { AuthContext } from "@/auth/useAuth";
 
 /**
  * Holds who is signed in.
@@ -37,6 +28,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // The one place this application genuinely fetches on mount: the session
+    // is a cookie the client cannot read, so the first render has no way of
+    // knowing who is signed in without asking. Every setState inside refresh
+    // happens after an await, so no render cascades from the effect body —
+    // but the rule stops at the call boundary and cannot see that. The
+    // alternatives are a data-fetching library or a router loader, both of
+    // which are more machinery than one question deserves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
 
@@ -59,14 +58,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth(): AuthValue {
-  const value = useContext(AuthContext);
-
-  if (value === null) {
-    throw new Error("useAuth must be used inside an AuthProvider.");
-  }
-
-  return value;
 }

@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router";
-import { useAuth } from "@/auth/AuthContext";
+import { useAuth } from "@/auth/useAuth";
 import { Button } from "@/components/ui/button";
 
 export function AppLayout() {

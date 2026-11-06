@@ -24,6 +24,42 @@ export interface AlertView {
   dispatchedAt: string | null;
 }
 
+/** One point on an alert's acceleration trace. */
+export interface TraceSample {
+  at: string;
+  magnitudeG: number;
+}
+
+/**
+ * The thresholds the detector was using when it judged this trace.
+ *
+ * Reported by the API rather than fixed here. They live in server
+ * configuration and can be retuned without a rebuild (ADR-002), so a chart
+ * drawing them from its own constants would, after the first retune,
+ * confidently draw a line the detector no longer uses.
+ */
+export interface DetectorThresholds {
+  freeFallG: number;
+  impactG: number;
+  stillnessCentreG: number;
+  stillnessToleranceG: number;
+  settleAfterImpactSeconds: number;
+  stillnessDurationSeconds: number;
+}
+
+/** The sensor data behind one alert (REQ-FALL-08). */
+export interface AlertTrace {
+  alertId: string;
+  residentId: string;
+  residentDisplayName: string;
+  kind: string;
+  raisedAt: string;
+  windowStart: string;
+  windowEnd: string;
+  thresholds: DetectorThresholds;
+  samples: TraceSample[];
+}
+
 /**
  * A request the API refused, carrying enough to show the person why.
  *
@@ -150,6 +186,10 @@ export const api = {
     return request<AlertView[]>(
       `/api/residents/${residentId}/alerts?openOnly=${openOnly}`,
     );
+  },
+
+  trace(alertId: string): Promise<AlertTrace> {
+    return request<AlertTrace>(`/api/alerts/${alertId}/trace`);
   },
 
   acknowledge(alertId: string): Promise<void> {
