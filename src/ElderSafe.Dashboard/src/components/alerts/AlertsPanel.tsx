@@ -262,6 +262,10 @@ export function AlertsPanel() {
                 ? `No open alerts across ${residents.length} resident${residents.length === 1 ? "" : "s"}.`
                 : `${open.length} open alert${open.length === 1 ? "" : "s"}.`}
             </CardDescription>
+            <p className="text-xs text-muted-foreground">
+              Showing open alerts only. Once acknowledged, an alert moves to
+              the Summary tab instead of disappearing.
+            </p>
           </div>
 
           <span
