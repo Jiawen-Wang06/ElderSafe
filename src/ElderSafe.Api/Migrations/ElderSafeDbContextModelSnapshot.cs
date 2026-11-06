@@ -177,6 +177,9 @@ namespace ElderSafe.Api.Migrations
                     b.Property<bool>("EmergencyCallEnabled")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("EmergencyContactPhoneNumber")
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("EscalationLimit")
                         .HasColumnType("INTEGER");
 

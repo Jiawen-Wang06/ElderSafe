@@ -12,7 +12,15 @@ namespace ElderSafe.Api.Controllers;
 /// <param name="EmergencyCallEnabled">
 /// Whether an emergency call follows an exhausted escalation chain.
 /// </param>
-public sealed record UpdateSettingsRequest(int? EscalationLimit, bool EmergencyCallEnabled);
+/// <param name="EmergencyContactPhoneNumber">
+/// A phone number the resident associates with the emergency-call setting.
+/// Null or blank means not configured. Stored and shown back to the
+/// resident only — never passed to anything capable of placing a call.
+/// </param>
+public sealed record UpdateSettingsRequest(
+    int? EscalationLimit,
+    bool EmergencyCallEnabled,
+    string? EmergencyContactPhoneNumber);
 
 /// <summary>The caregiver to assign, by the username they registered with.</summary>
 public sealed record AssignCaregiverRequest(string UserName);
@@ -92,9 +100,42 @@ public sealed class ResidentConfigurationController : ControllerBase
             accountId.Value,
             request.EscalationLimit,
             request.EmergencyCallEnabled,
+            request.EmergencyContactPhoneNumber,
             cancellationToken);
 
         return FromOutcome(outcome);
+    }
+
+    /// <summary>
+    /// Checks for a caregiver account with exactly this email, for the
+    /// "add a caregiver" form to confirm before submitting (REQ-CFG-07).
+    /// </summary>
+    /// <remarks>
+    /// Gated the same way assigning a caregiver is, rather than being open
+    /// to any authenticated account: this is part of that configuration
+    /// flow, not a general-purpose account directory (RISK-19).
+    /// </remarks>
+    [HttpGet("caregivers/lookup")]
+    public async Task<ActionResult<CaregiverLookupResult>> LookupCaregiver(
+        Guid residentId,
+        [FromQuery] string email,
+        CancellationToken cancellationToken)
+    {
+        var accountId = await RequireConfigureAsync(residentId, cancellationToken);
+
+        if (accountId is null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return Ok(new CaregiverLookupResult(false, null));
+        }
+
+        var result = await _configuration.LookupCaregiverAsync(email, cancellationToken);
+
+        return Ok(result);
     }
 
     [HttpGet("caregivers")]
@@ -201,6 +242,24 @@ public sealed class ResidentConfigurationController : ControllerBase
             return BadRequest(new
             {
                 message = "A resident must keep at least one caregiver. Assign another before removing this one."
+            });
+        }
+
+        if (outcome == ConfigurationOutcome.LimitAboveMax)
+        {
+            return BadRequest(new
+            {
+                message = $"The escalation limit cannot exceed {ResidentConfigurationService.MaxEscalationLimit}."
+            });
+        }
+
+        if (outcome == ConfigurationOutcome.EmergencyContactPhoneNumberTooLong)
+        {
+            return BadRequest(new
+            {
+                message =
+                    $"The emergency contact number cannot be longer than " +
+                    $"{ResidentConfigurationService.MaxEmergencyContactPhoneNumberLength} characters."
             });
         }
 

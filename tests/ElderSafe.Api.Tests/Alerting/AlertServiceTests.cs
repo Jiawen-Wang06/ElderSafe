@@ -210,6 +210,41 @@ public class AlertServiceTests : IDisposable
         Assert.NotNull(_context.Alerts.Single().DispatchedAt);
     }
 
+    [Fact(DisplayName = "REQ-CFG-06 the resident's configured contact number reaches only the dispatch simulation")]
+    [Trait("Requirement", "REQ-CFG-06")]
+    public async Task The_residents_configured_contact_number_reaches_only_the_dispatch_simulation()
+    {
+        var resident = AddResident(emergencyCallEnabled: true, emergencyContactPhoneNumber: "555-0100");
+        AddCaregiver(resident.Id, order: 0);
+        AddOpenAlert(resident.Id);
+
+        _clock.Advance(Timeout);
+        await _service.ApplyEscalationAsync();
+
+        // IEmergencyDispatch is the one boundary any contact number can
+        // cross, and RecordingDispatch here stands in for its only real
+        // implementation, LoggingEmergencyDispatch, which only logs. Seeing
+        // the number arrive at this boundary and nowhere else is as much as
+        // a test can verify that it never reaches a real dial path.
+        Assert.Single(_dispatch.Calls);
+        Assert.Equal("555-0100", _dispatch.Calls.Single().ContactPhoneNumber);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-06 an unconfigured contact number reaches the dispatch simulation as null")]
+    [Trait("Requirement", "REQ-CFG-06")]
+    public async Task An_unconfigured_contact_number_reaches_the_dispatch_simulation_as_null()
+    {
+        var resident = AddResident(emergencyCallEnabled: true);
+        AddCaregiver(resident.Id, order: 0);
+        AddOpenAlert(resident.Id);
+
+        _clock.Advance(Timeout);
+        await _service.ApplyEscalationAsync();
+
+        Assert.Single(_dispatch.Calls);
+        Assert.Null(_dispatch.Calls.Single().ContactPhoneNumber);
+    }
+
     [Fact(DisplayName = "REQ-FALL-05 places no emergency call when the setting is off")]
     [Trait("Requirement", "REQ-FALL-05")]
     public async Task Places_no_emergency_call_when_the_setting_is_off()
@@ -329,18 +364,22 @@ public class AlertServiceTests : IDisposable
         Assert.Single(_context.Alerts);
     }
 
-    private Resident AddResident(bool emergencyCallEnabled = false)
+    private Resident AddResident(bool emergencyCallEnabled = false, string? emergencyContactPhoneNumber = null)
     {
-        return AddResident("Resident A", emergencyCallEnabled);
+        return AddResident("Resident A", emergencyCallEnabled, emergencyContactPhoneNumber);
     }
 
-    private Resident AddResident(string displayName, bool emergencyCallEnabled = false)
+    private Resident AddResident(
+        string displayName,
+        bool emergencyCallEnabled = false,
+        string? emergencyContactPhoneNumber = null)
     {
         var resident = new Resident
         {
             Id = Guid.NewGuid(),
             DisplayName = displayName,
-            EmergencyCallEnabled = emergencyCallEnabled
+            EmergencyCallEnabled = emergencyCallEnabled,
+            EmergencyContactPhoneNumber = emergencyContactPhoneNumber
         };
 
         _context.Residents.Add(resident);

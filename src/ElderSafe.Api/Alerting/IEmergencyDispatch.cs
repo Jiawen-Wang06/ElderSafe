@@ -12,12 +12,19 @@ namespace ElderSafe.Api.Alerting;
 /// <param name="Latitude">Last known latitude, if any reading carried one.</param>
 /// <param name="Longitude">Last known longitude, if any reading carried one.</param>
 /// <param name="RaisedAt">When the alert was raised.</param>
+/// <param name="ContactPhoneNumber">
+/// The resident's configured emergency contact number (REQ-CFG-06), or null
+/// if they have not set one. Carried here only so the simulated log entry
+/// can show it; <see cref="IEmergencyDispatch"/> has no implementation that
+/// does anything with it beyond logging it.
+/// </param>
 public sealed record EmergencyCallRequest(
     Guid AlertId,
     Guid ResidentId,
     double? Latitude,
     double? Longitude,
-    DateTimeOffset RaisedAt);
+    DateTimeOffset RaisedAt,
+    string? ContactPhoneNumber = null);
 
 /// <summary>
 /// Places an emergency call.

@@ -41,7 +41,7 @@ public class ResidentConfigurationTests
 
         var update = await client.PutAsJsonAsync(
             $"/api/residents/{ResidentA}/settings",
-            new { EscalationLimit = 1, EmergencyCallEnabled = true });
+            new { EscalationLimit = 1, EmergencyCallEnabled = true, EmergencyContactPhoneNumber = (string?)null });
 
         Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
 
@@ -62,7 +62,100 @@ public class ResidentConfigurationTests
 
         var response = await client.PutAsJsonAsync(
             $"/api/residents/{ResidentA}/settings",
-            new { EscalationLimit = 0, EmergencyCallEnabled = false });
+            new { EscalationLimit = 0, EmergencyCallEnabled = false, EmergencyContactPhoneNumber = (string?)null });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-01 an escalation limit of exactly ten is accepted")]
+    [Trait("Requirement", "REQ-CFG-01")]
+    public async Task An_escalation_limit_of_exactly_ten_is_accepted()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/residents/{ResidentA}/settings",
+            new { EscalationLimit = 10, EmergencyCallEnabled = false, EmergencyContactPhoneNumber = (string?)null });
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-01 an escalation limit above ten is refused")]
+    [Trait("Requirement", "REQ-CFG-01")]
+    public async Task An_escalation_limit_above_ten_is_refused()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/residents/{ResidentA}/settings",
+            new { EscalationLimit = 11, EmergencyCallEnabled = false, EmergencyContactPhoneNumber = (string?)null });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-06 a resident account can set and clear an emergency contact number")]
+    [Trait("Requirement", "REQ-CFG-06")]
+    public async Task A_resident_account_can_set_and_clear_an_emergency_contact_number()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var set = await client.PutAsJsonAsync(
+            $"/api/residents/{ResidentA}/settings",
+            new { EscalationLimit = (int?)null, EmergencyCallEnabled = true, EmergencyContactPhoneNumber = "555-0100" });
+
+        Assert.Equal(HttpStatusCode.NoContent, set.StatusCode);
+
+        var afterSet = await client.GetFromJsonAsync<ResidentSettingsView>($"/api/residents/{ResidentA}/settings");
+
+        Assert.NotNull(afterSet);
+        Assert.Equal("555-0100", afterSet!.EmergencyContactPhoneNumber);
+
+        var clear = await client.PutAsJsonAsync(
+            $"/api/residents/{ResidentA}/settings",
+            new { EscalationLimit = (int?)null, EmergencyCallEnabled = true, EmergencyContactPhoneNumber = (string?)null });
+
+        Assert.Equal(HttpStatusCode.NoContent, clear.StatusCode);
+
+        var afterClear = await client.GetFromJsonAsync<ResidentSettingsView>($"/api/residents/{ResidentA}/settings");
+
+        Assert.NotNull(afterClear);
+        Assert.Null(afterClear!.EmergencyContactPhoneNumber);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-06 blank input clears the emergency contact number rather than storing blank text")]
+    [Trait("Requirement", "REQ-CFG-06")]
+    public async Task Blank_input_clears_the_emergency_contact_number_rather_than_storing_blank_text()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/residents/{ResidentA}/settings",
+            new { EscalationLimit = (int?)null, EmergencyCallEnabled = false, EmergencyContactPhoneNumber = "   " });
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        var settings = await client.GetFromJsonAsync<ResidentSettingsView>($"/api/residents/{ResidentA}/settings");
+
+        Assert.NotNull(settings);
+        Assert.Null(settings!.EmergencyContactPhoneNumber);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-06 an emergency contact number longer than the cap is refused")]
+    [Trait("Requirement", "REQ-CFG-06")]
+    public async Task An_emergency_contact_number_longer_than_the_cap_is_refused()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var tooLong = new string('5', ResidentConfigurationService.MaxEmergencyContactPhoneNumberLength + 1);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/residents/{ResidentA}/settings",
+            new { EscalationLimit = (int?)null, EmergencyCallEnabled = false, EmergencyContactPhoneNumber = tooLong });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -76,7 +169,7 @@ public class ResidentConfigurationTests
 
         var response = await client.PutAsJsonAsync(
             $"/api/residents/{ResidentA}/settings",
-            new { EscalationLimit = 1, EmergencyCallEnabled = false });
+            new { EscalationLimit = 1, EmergencyCallEnabled = false, EmergencyContactPhoneNumber = (string?)null });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -136,6 +229,77 @@ public class ResidentConfigurationTests
         var response = await client.PostAsJsonAsync(
             $"/api/residents/{ResidentA}/caregivers",
             new { UserName = "nobody@example.invalid" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-07 looking up an existing caregiver's exact email finds their display name")]
+    [Trait("Requirement", "REQ-CFG-07")]
+    public async Task Looking_up_an_existing_caregivers_exact_email_finds_their_display_name()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var response = await client.GetAsync(
+            $"/api/residents/{ResidentA}/caregivers/lookup?email={Uri.EscapeDataString(FirstCaregiver)}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var result = await response.Content.ReadFromJsonAsync<CaregiverLookupResult>();
+
+        Assert.NotNull(result);
+        Assert.True(result!.Found);
+        Assert.False(string.IsNullOrEmpty(result.DisplayName));
+    }
+
+    [Fact(DisplayName = "REQ-CFG-07 looking up an unknown email reports not found, with no display name")]
+    [Trait("Requirement", "REQ-CFG-07")]
+    public async Task Looking_up_an_unknown_email_reports_not_found_with_no_display_name()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var response = await client.GetAsync(
+            $"/api/residents/{ResidentA}/caregivers/lookup?email=nobody@example.invalid");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var result = await response.Content.ReadFromJsonAsync<CaregiverLookupResult>();
+
+        Assert.NotNull(result);
+        Assert.False(result!.Found);
+        Assert.Null(result.DisplayName);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-07 a partial email does not match an account registered under a longer one")]
+    [Trait("Requirement", "REQ-CFG-07")]
+    public async Task A_partial_email_does_not_match_an_account_registered_under_a_longer_one()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var prefix = FirstCaregiver[..^1];
+
+        var response = await client.GetAsync(
+            $"/api/residents/{ResidentA}/caregivers/lookup?email={Uri.EscapeDataString(prefix)}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var result = await response.Content.ReadFromJsonAsync<CaregiverLookupResult>();
+
+        Assert.NotNull(result);
+        Assert.False(result!.Found);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-07 a caregiver cannot use the lookup endpoint")]
+    [Trait("Requirement", "REQ-CFG-07")]
+    public async Task A_caregiver_cannot_use_the_lookup_endpoint()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, FirstCaregiver);
+
+        var response = await client.GetAsync(
+            $"/api/residents/{ResidentA}/caregivers/lookup?email={Uri.EscapeDataString(SecondCaregiver)}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -212,7 +376,7 @@ public class ResidentConfigurationTests
 
         var update = await client.PutAsJsonAsync(
             $"/api/residents/{ResidentA}/settings",
-            new { EscalationLimit = (int?)null, EmergencyCallEnabled = true });
+            new { EscalationLimit = (int?)null, EmergencyCallEnabled = true, EmergencyContactPhoneNumber = (string?)null });
 
         Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
 
