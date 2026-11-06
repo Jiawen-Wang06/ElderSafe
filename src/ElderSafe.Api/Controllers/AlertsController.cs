@@ -20,15 +20,18 @@ public sealed class AlertsController : ControllerBase
 {
     private readonly AlertService _alertService;
     private readonly AlertTraceService _traceService;
+    private readonly AlertSummaryService _summaryService;
     private readonly ICurrentCaregiver _currentCaregiver;
 
     public AlertsController(
         AlertService alertService,
         AlertTraceService traceService,
+        AlertSummaryService summaryService,
         ICurrentCaregiver currentCaregiver)
     {
         _alertService = alertService;
         _traceService = traceService;
+        _summaryService = summaryService;
         _currentCaregiver = currentCaregiver;
     }
 
@@ -57,6 +60,51 @@ public sealed class AlertsController : ControllerBase
         }
 
         return Ok(alerts);
+    }
+
+    /// <summary>
+    /// Alert counts for a resident over a date range (REQ-FALL-09).
+    /// </summary>
+    /// <remarks>
+    /// Range validity is checked here, before the resident is looked up, so
+    /// a malformed range gets a 400 that says what is wrong rather than being
+    /// folded into the 404 that authorization failures use. The two refusals
+    /// mean different things to a caller: a 400 is something the caller can
+    /// fix by asking differently, a 404 is not.
+    /// </remarks>
+    [HttpGet("residents/{residentId:guid}/alerts/summary")]
+    public async Task<ActionResult<AlertSummary>> GetSummary(
+        Guid residentId,
+        [FromQuery] DateTimeOffset from,
+        [FromQuery] DateTimeOffset to,
+        CancellationToken cancellationToken)
+    {
+        var caregiverId = _currentCaregiver.Id;
+
+        if (caregiverId is null)
+        {
+            return Unauthorized();
+        }
+
+        if (from >= to)
+        {
+            return BadRequest("'from' must be earlier than 'to'.");
+        }
+
+        if (to - from > AlertSummaryService.MaxRange)
+        {
+            return BadRequest($"The range cannot exceed {AlertSummaryService.MaxRange.TotalDays:0} days.");
+        }
+
+        var summary = await _summaryService.GetAsync(
+            caregiverId.Value, residentId, from, to, cancellationToken);
+
+        if (summary is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(summary);
     }
 
     /// <summary>

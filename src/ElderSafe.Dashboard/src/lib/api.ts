@@ -60,6 +60,31 @@ export interface AlertTrace {
   samples: TraceSample[];
 }
 
+/** Counts for one alert kind within one bucket (REQ-FALL-09). */
+export interface AlertKindCount {
+  kind: string;
+  total: number;
+  respondedInTime: number;
+  escalated: number;
+}
+
+/** One period's counts in an alert summary. */
+export interface SummaryBucket {
+  periodStart: string;
+  periodEnd: string;
+  counts: AlertKindCount[];
+}
+
+/** Alert counts for a resident over a date range (REQ-FALL-09). */
+export interface AlertSummary {
+  residentId: string;
+  residentDisplayName: string;
+  from: string;
+  to: string;
+  granularity: "day" | "week" | "month";
+  buckets: SummaryBucket[];
+}
+
 /**
  * A request the API refused, carrying enough to show the person why.
  *
@@ -190,6 +215,15 @@ export const api = {
 
   trace(alertId: string): Promise<AlertTrace> {
     return request<AlertTrace>(`/api/alerts/${alertId}/trace`);
+  },
+
+  summary(residentId: string, from: Date, to: Date): Promise<AlertSummary> {
+    const query = new URLSearchParams({
+      from: from.toISOString(),
+      to: to.toISOString(),
+    });
+
+    return request<AlertSummary>(`/api/residents/${residentId}/alerts/summary?${query}`);
   },
 
   acknowledge(alertId: string): Promise<void> {
