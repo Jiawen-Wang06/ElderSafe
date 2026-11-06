@@ -3,6 +3,7 @@ using ElderSafe.Api.Data;
 using ElderSafe.Api.Data.Entities;
 using ElderSafe.Api.Detection;
 using ElderSafe.Api.Security;
+using ElderSafe.Api.Simulation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -27,6 +28,8 @@ builder.Services.Configure<DemoDataOptions>(
     builder.Configuration.GetSection(DemoDataOptions.SectionName));
 builder.Services.Configure<AlertServiceOptions>(
     builder.Configuration.GetSection(AlertServiceOptions.SectionName));
+builder.Services.Configure<SimulationOptions>(
+    builder.Configuration.GetSection(SimulationOptions.SectionName));
 
 builder.Services.AddIdentity<Caregiver, IdentityRole<Guid>>(options =>
 {
@@ -90,6 +93,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentCaregiver, HttpContextCurrentCaregiver>();
 builder.Services.AddScoped<IResidentAccess, ResidentAccess>();
 builder.Services.AddSingleton<IAlertNotifier, SignalRAlertNotifier>();
+builder.Services.AddSingleton(provider =>
+    provider.GetRequiredService<IOptions<SimulationOptions>>().Value);
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IEmergencyDispatch, LoggingEmergencyDispatch>();
