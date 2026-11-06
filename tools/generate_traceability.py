@@ -27,10 +27,15 @@ Requirement ids reach this script through the result files:
     *.trx         .NET test results   (dotnet test --logger trx)
     *.xml         JUnit XML           (pytest --junitxml, Playwright junit reporter)
 
+A requirement whose "Verified by" cell says "deferred" is one the project has
+decided not to build yet, with the reason recorded in the requirements
+document. Those count as accounted for: the point of the gate is that no
+requirement is *forgotten*, not that everything is built.
+
 Exit codes:
-    0   every requirement has at least one passing test
-    1   at least one requirement has no passing test, or a tag names an
-        unknown requirement
+    0   every requirement either has a passing test or is marked deferred
+    1   at least one requirement is neither, or a tag names an unknown
+        requirement
 
 Usage:
     python tools/generate_traceability.py --results artifacts/ --check
@@ -57,7 +62,12 @@ class Requirement:
     req_id: str
     text: str
     sources: str
+    verified_by: str = ""
     tests: list[tuple[str, str]] = field(default_factory=list)
+
+    @property
+    def is_deferred(self) -> bool:
+        return "deferred" in self.verified_by.lower()
 
     @property
     def passing(self) -> list[str]:
@@ -73,7 +83,14 @@ class Requirement:
             return "FAIL"
         if self.passing:
             return "PASS"
+        if self.is_deferred:
+            return "DEFERRED"
         return "NO TEST"
+
+    @property
+    def is_accounted_for(self) -> bool:
+        """Verified, or deliberately deferred with a recorded reason."""
+        return self.status in ("PASS", "DEFERRED")
 
 
 def parse_requirements(doc: Path) -> dict[str, Requirement]:
@@ -89,7 +106,10 @@ def parse_requirements(doc: Path) -> dict[str, Requirement]:
         if not REQ_PATTERN.fullmatch(req_id):
             continue
         requirements[req_id] = Requirement(
-            req_id=req_id, text=cells[1], sources=cells[3]
+            req_id=req_id,
+            text=cells[1],
+            sources=cells[3],
+            verified_by=cells[4] if len(cells) > 4 else "",
         )
     return requirements
 
@@ -172,6 +192,7 @@ def render(requirements: dict[str, Requirement], unknown: dict[str, list[str]]) 
     covered = sum(1 for r in requirements.values() if r.status == "PASS")
     failing = [r for r in requirements.values() if r.status == "FAIL"]
     untested = [r for r in requirements.values() if r.status == "NO TEST"]
+    deferred = [r for r in requirements.values() if r.status == "DEFERRED"]
 
     lines = [
         "# Requirements traceability matrix",
@@ -181,7 +202,8 @@ def render(requirements: dict[str, Requirement], unknown: dict[str, list[str]]) 
         f"- Requirements: **{total}**",
         f"- Verified by a passing test: **{covered}**",
         f"- With a failing test: **{len(failing)}**",
-        f"- With no test: **{len(untested)}**",
+        f"- Deliberately deferred: **{len(deferred)}**",
+        f"- Neither verified nor deferred: **{len(untested)}**",
         "",
         "| Requirement | Comes from | Tests | Status |",
         "| --- | --- | --- | --- |",
@@ -197,9 +219,21 @@ def render(requirements: dict[str, Requirement], unknown: dict[str, list[str]]) 
     if untested:
         lines += [
             "",
-            "## Requirements with no test",
+            "## Requirements neither verified nor deferred",
+            "",
+            "The build gate turns on once this list is empty: every requirement",
+            "either proven by a passing test, or marked deferred in the",
+            "requirements document with a reason.",
             "",
             *[f"- {r.req_id}: {r.text}" for r in untested],
+        ]
+
+    if deferred:
+        lines += [
+            "",
+            "## Deferred, with a recorded reason",
+            "",
+            *[f"- {r.req_id}: {r.verified_by}" for r in deferred],
         ]
 
     if failing:
@@ -231,7 +265,7 @@ def main() -> int:
     parser.add_argument("--results", type=Path, default=Path("artifacts"))
     parser.add_argument("--out", type=Path, default=Path("docs/traceability.md"))
     parser.add_argument("--check", action="store_true",
-                        help="exit 1 if any requirement lacks a passing test")
+                        help="exit 1 if any requirement is neither verified nor deferred")
     args = parser.parse_args()
 
     if not args.requirements.is_file():
@@ -258,10 +292,16 @@ def main() -> int:
     args.out.write_text(render(requirements, dict(unknown)), encoding="utf-8")
     print(f"wrote {args.out}")
 
-    gaps = [r.req_id for r in requirements.values() if r.status != "PASS"]
+    gaps = [r.req_id for r in requirements.values() if not r.is_accounted_for]
+    deferred = [r.req_id for r in requirements.values() if r.status == "DEFERRED"]
+
+    verified = sum(1 for r in requirements.values() if r.status == "PASS")
+    print(f"{verified} verified, {len(deferred)} deferred, {len(gaps)} unaccounted "
+          f"of {len(requirements)} requirements")
+
     if gaps:
-        print(f"{len(gaps)} requirement(s) without a passing test: {', '.join(gaps)}",
-              file=sys.stderr)
+        print(f"neither verified nor deferred: {', '.join(gaps)}", file=sys.stderr)
+        print("the traceability gate stays off until this list is empty", file=sys.stderr)
     if unknown:
         print(f"unknown requirement tags: {', '.join(unknown)}", file=sys.stderr)
 

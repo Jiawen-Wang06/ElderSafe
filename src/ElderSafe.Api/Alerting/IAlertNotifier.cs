@@ -1,7 +1,15 @@
 namespace ElderSafe.Api.Alerting;
 
+/// <summary>A change to a resident's configuration, announced to caregivers.</summary>
+public sealed record ResidentConfigurationChange(
+    Guid ResidentId,
+    string Action,
+    string Detail,
+    DateTimeOffset At);
+
 /// <summary>
-/// Tells connected caregivers that something has happened to an alert.
+/// Tells connected caregivers that something has happened to an alert, or to
+/// the configuration of a resident they look after.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -18,13 +26,6 @@ namespace ElderSafe.Api.Alerting;
 /// RISK-16 and why ADR-007 exists.
 /// </para>
 /// </remarks>
-/// <summary>A change to a resident's configuration, announced to caregivers.</summary>
-public sealed record ResidentConfigurationChange(
-    Guid ResidentId,
-    string Action,
-    string Detail,
-    DateTimeOffset At);
-
 public interface IAlertNotifier
 {
     /// <summary>A new alert has been raised.</summary>
