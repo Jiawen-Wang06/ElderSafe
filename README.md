@@ -76,6 +76,7 @@ Deliberate omissions, each with a reason in the architecture document:
 - **No trained model.** The detector uses threshold rules. No accuracy figure is published, because any figure measured against this project's own simulator would measure the simulator ([ADR-002](docs/adr/ADR-002-rule-based-detector.md)).
 - **Passwords are stored in the app's own database**, hashed by Identity. A real deployment should hand sign-on to Entra ID ([ADR-006](docs/adr/ADR-006-identity-cookie-auth.md)).
 - **Alerts reach the dashboard only.** There is no push notification, SMS or call, so a caregiver who is not signed in is not told. Escalation still runs server-side and an emergency call still follows an exhausted chain, but this is the project's largest residual risk ([ADR-007](docs/adr/ADR-007-dashboard-only-notification.md)).
+- **No device pairing flow.** Devices authenticate and are bound to a resident, but pairing is seeded. Creating and revoking pairings needs an administrator role that does not exist yet.
 - **No FHIR export.** Needs a FHIR server running alongside.
 - **The shift summary runs on a template generator by default.** The grounding and the validator are real and tested, but unless an API key is configured the text comes from a template rather than a model ([ADR-005](docs/adr/ADR-005-grounded-llm-summary.md)).
 - **No staging slot or infrastructure as code.** The next piece of work ([ADR-004](docs/adr/ADR-004-single-web-app.md)).
