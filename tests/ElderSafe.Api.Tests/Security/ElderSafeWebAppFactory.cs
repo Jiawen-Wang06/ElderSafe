@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ElderSafe.Api.Tests.Security;
 
-public sealed class ElderSafeWebAppFactory : WebApplicationFactory<Program>
+public class ElderSafeWebAppFactory : WebApplicationFactory<Program>
 {
     public const string DemoPassword = "Demo-Passw0rd!";
     public const string DemoDeviceKey = "test-device-key-not-for-real-use";
@@ -28,6 +28,7 @@ public sealed class ElderSafeWebAppFactory : WebApplicationFactory<Program>
         builder.UseSetting("DemoData:CaregiverPassword", DemoPassword);
         builder.UseSetting("DemoData:DeviceKey", DemoDeviceKey);
         builder.UseSetting("Alerting:EscalationSweepInterval", "01:00:00");
+        builder.UseSetting("Simulation:Enabled", "true");
 
         builder.ConfigureServices(services =>
         {

@@ -1,4 +1,5 @@
 using ElderSafe.Api.Detection;
+using ElderSafe.Api.Simulation;
 
 namespace ElderSafe.Api.Tests.Detection;
 
@@ -157,6 +158,36 @@ public class ThresholdFallDetectorTests
 
         Assert.Equal(1.0, flat.MagnitudeG, precision: 6);
         Assert.Equal(1.0, tilted.MagnitudeG, precision: 6);
+    }
+
+    [Fact(DisplayName = "REQ-FALL-01 detects the shared fall scenario used by the simulator")]
+    [Trait("Requirement", "REQ-FALL-01")]
+    public void Detects_the_shared_fall_scenario_used_by_the_simulator()
+    {
+        ScenarioLibrary.TryBuild(ScenarioLibrary.Fall, Origin.AddSeconds(10), out var readings);
+
+        var window = readings
+            .Select(r => new AccelerationSample(r.At, r.AccelerationX, r.AccelerationY, r.AccelerationZ))
+            .ToList();
+
+        var verdict = CreateDetector().Evaluate(window);
+
+        Assert.Equal(FallOutcome.Fall, verdict.Outcome);
+    }
+
+    [Fact(DisplayName = "REQ-FALL-01 does not detect the shared ordinary movement scenario")]
+    [Trait("Requirement", "REQ-FALL-01")]
+    public void Does_not_detect_the_shared_ordinary_movement_scenario()
+    {
+        ScenarioLibrary.TryBuild(ScenarioLibrary.OrdinaryMovement, Origin.AddSeconds(10), out var readings);
+
+        var window = readings
+            .Select(r => new AccelerationSample(r.At, r.AccelerationX, r.AccelerationY, r.AccelerationZ))
+            .ToList();
+
+        var verdict = CreateDetector().Evaluate(window);
+
+        Assert.Equal(FallOutcome.NoFall, verdict.Outcome);
     }
 
     private sealed class Window
