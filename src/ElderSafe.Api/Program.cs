@@ -141,6 +141,12 @@ builder.Services.AddScoped<AlertTraceService>(provider =>
         provider.GetRequiredService<IOptions<FallDetectorOptions>>().Value,
         provider.GetRequiredService<IOptions<AlertServiceOptions>>().Value));
 
+builder.Services.AddScoped<AlertSummaryService>(provider =>
+    new AlertSummaryService(
+        provider.GetRequiredService<ElderSafeDbContext>(),
+        provider.GetRequiredService<IResidentAccess>(),
+        provider.GetRequiredService<IOptions<EscalationOptions>>().Value));
+
 builder.Services.AddScoped<ResidentConfigurationService>(provider =>
     new ResidentConfigurationService(
         provider.GetRequiredService<ElderSafeDbContext>(),
