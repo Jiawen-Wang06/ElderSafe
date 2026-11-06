@@ -13,6 +13,9 @@ public sealed class SignalRAlertNotifier : IAlertNotifier
     /// <summary>Client method invoked when an alert changes.</summary>
     public const string AlertUpdatedMethod = "alertUpdated";
 
+    /// <summary>Client method invoked when a resident's configuration changes.</summary>
+    public const string ConfigurationChangedMethod = "configurationChanged";
+
     private readonly IHubContext<AlertsHub> _hub;
 
     public SignalRAlertNotifier(IHubContext<AlertsHub> hub)
@@ -28,6 +31,15 @@ public sealed class SignalRAlertNotifier : IAlertNotifier
     public Task AlertUpdatedAsync(AlertView alert, CancellationToken cancellationToken = default)
     {
         return Send(AlertUpdatedMethod, alert, cancellationToken);
+    }
+
+    public Task ConfigurationChangedAsync(
+        ResidentConfigurationChange change,
+        CancellationToken cancellationToken = default)
+    {
+        return _hub.Clients
+            .Group(AlertsHub.ResidentGroup(change.ResidentId))
+            .SendAsync(ConfigurationChangedMethod, change, cancellationToken);
     }
 
     private Task Send(string method, AlertView alert, CancellationToken cancellationToken)

@@ -88,76 +88,6 @@ namespace ElderSafe.Api.Migrations
                     b.ToTable("AuditEntries");
                 });
 
-            modelBuilder.Entity("ElderSafe.Api.Data.Entities.Caregiver", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("AccessFailedCount")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(256)
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("EmailConfirmed")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("LockoutEnabled")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long?>("LockoutEnd")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("NormalizedEmail")
-                        .HasMaxLength(256)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("NormalizedUserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PasswordHash")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("PhoneNumberConfirmed")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("SecurityStamp")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("TwoFactorEnabled")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("UserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedEmail")
-                        .HasDatabaseName("EmailIndex");
-
-                    b.HasIndex("NormalizedUserName")
-                        .IsUnique()
-                        .HasDatabaseName("UserNameIndex");
-
-                    b.ToTable("AspNetUsers", (string)null);
-                });
-
             modelBuilder.Entity("ElderSafe.Api.Data.Entities.Device", b =>
                 {
                     b.Property<Guid>("Id")
@@ -236,6 +166,9 @@ namespace ElderSafe.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("AccountId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -257,6 +190,9 @@ namespace ElderSafe.Api.Migrations
                         .HasColumnType("REAL");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique();
 
                     b.ToTable("Residents");
                 });
@@ -280,6 +216,81 @@ namespace ElderSafe.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("ResidentCaregivers");
+                });
+
+            modelBuilder.Entity("ElderSafe.Api.Data.Entities.UserAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AccountType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("LockoutEnd")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedEmail")
+                        .HasDatabaseName("EmailIndex");
+
+                    b.HasIndex("NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("UserNameIndex");
+
+                    b.ToTable("AspNetUsers", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
@@ -410,7 +421,7 @@ namespace ElderSafe.Api.Migrations
 
             modelBuilder.Entity("ElderSafe.Api.Data.Entities.Alert", b =>
                 {
-                    b.HasOne("ElderSafe.Api.Data.Entities.Caregiver", "AcknowledgedByCaregiver")
+                    b.HasOne("ElderSafe.Api.Data.Entities.UserAccount", "AcknowledgedByCaregiver")
                         .WithMany()
                         .HasForeignKey("AcknowledgedByCaregiverId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -448,9 +459,19 @@ namespace ElderSafe.Api.Migrations
                     b.Navigation("Resident");
                 });
 
+            modelBuilder.Entity("ElderSafe.Api.Data.Entities.Resident", b =>
+                {
+                    b.HasOne("ElderSafe.Api.Data.Entities.UserAccount", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Account");
+                });
+
             modelBuilder.Entity("ElderSafe.Api.Data.Entities.ResidentCaregiver", b =>
                 {
-                    b.HasOne("ElderSafe.Api.Data.Entities.Caregiver", "Caregiver")
+                    b.HasOne("ElderSafe.Api.Data.Entities.UserAccount", "Caregiver")
                         .WithMany("Assignments")
                         .HasForeignKey("CaregiverId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -478,7 +499,7 @@ namespace ElderSafe.Api.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
-                    b.HasOne("ElderSafe.Api.Data.Entities.Caregiver", null)
+                    b.HasOne("ElderSafe.Api.Data.Entities.UserAccount", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -487,7 +508,7 @@ namespace ElderSafe.Api.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
                 {
-                    b.HasOne("ElderSafe.Api.Data.Entities.Caregiver", null)
+                    b.HasOne("ElderSafe.Api.Data.Entities.UserAccount", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -502,7 +523,7 @@ namespace ElderSafe.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("ElderSafe.Api.Data.Entities.Caregiver", null)
+                    b.HasOne("ElderSafe.Api.Data.Entities.UserAccount", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -511,21 +532,21 @@ namespace ElderSafe.Api.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
                 {
-                    b.HasOne("ElderSafe.Api.Data.Entities.Caregiver", null)
+                    b.HasOne("ElderSafe.Api.Data.Entities.UserAccount", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ElderSafe.Api.Data.Entities.Caregiver", b =>
-                {
-                    b.Navigation("Assignments");
-                });
-
             modelBuilder.Entity("ElderSafe.Api.Data.Entities.Resident", b =>
                 {
                     b.Navigation("Caregivers");
+                });
+
+            modelBuilder.Entity("ElderSafe.Api.Data.Entities.UserAccount", b =>
+                {
+                    b.Navigation("Assignments");
                 });
 #pragma warning restore 612, 618
         }

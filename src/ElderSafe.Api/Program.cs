@@ -1,4 +1,5 @@
 using ElderSafe.Api.Alerting;
+using ElderSafe.Api.Configuration;
 using ElderSafe.Api.Data;
 using ElderSafe.Api.Data.Entities;
 using ElderSafe.Api.Detection;
@@ -31,7 +32,7 @@ builder.Services.Configure<AlertServiceOptions>(
 builder.Services.Configure<SimulationOptions>(
     builder.Configuration.GetSection(SimulationOptions.SectionName));
 
-builder.Services.AddIdentity<Caregiver, IdentityRole<Guid>>(options =>
+builder.Services.AddIdentity<UserAccount, IdentityRole<Guid>>(options =>
 {
     options.Password.RequiredLength = 12;
     options.SignIn.RequireConfirmedAccount = false;
@@ -126,6 +127,13 @@ builder.Services.AddScoped<AlertService>(provider =>
         provider.GetRequiredService<IResidentAccess>(),
         provider.GetRequiredService<IAlertNotifier>(),
         provider.GetRequiredService<ILogger<AlertService>>()));
+
+builder.Services.AddScoped<ResidentConfigurationService>(provider =>
+    new ResidentConfigurationService(
+        provider.GetRequiredService<ElderSafeDbContext>(),
+        provider.GetRequiredService<IAlertNotifier>(),
+        provider.GetRequiredService<TimeProvider>(),
+        provider.GetRequiredService<ILogger<ResidentConfigurationService>>()));
 
 builder.Services.AddScoped<ReadingIngestionService>(provider =>
     new ReadingIngestionService(

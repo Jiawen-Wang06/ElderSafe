@@ -143,7 +143,7 @@ public sealed class AlertService
         // Indistinguishable from "no such alert" on purpose: telling an
         // unassigned caregiver that the alert exists confirms a resident they
         // have no business knowing about (RISK-12).
-        if (!await IsAssignedAsync(caregiverId, alert.ResidentId, cancellationToken))
+        if (!await CanViewAsync(caregiverId, alert.ResidentId, cancellationToken))
         {
             return false;
         }
@@ -185,7 +185,7 @@ public sealed class AlertService
         bool openOnly = true,
         CancellationToken cancellationToken = default)
     {
-        if (!await IsAssignedAsync(caregiverId, residentId, cancellationToken))
+        if (!await CanViewAsync(caregiverId, residentId, cancellationToken))
         {
             return null;
         }
@@ -300,19 +300,19 @@ public sealed class AlertService
     }
 
     /// <summary>
-    /// Whether this caregiver is assigned to this resident (REQ-SEC-01).
+    /// Whether this account may see this resident (REQ-SEC-01).
     /// </summary>
     /// <remarks>
     /// Signing in proves identity; this is what grants access. The check lives
     /// beside the queries so that every caregiver-facing path passes through
     /// it, rather than each controller remembering to filter (RISK-12).
     /// </remarks>
-    private Task<bool> IsAssignedAsync(
+    private Task<bool> CanViewAsync(
         Guid caregiverId,
         Guid residentId,
         CancellationToken cancellationToken)
     {
-        return _residentAccess.IsAssignedAsync(caregiverId, residentId, cancellationToken);
+        return _residentAccess.CanViewAsync(caregiverId, residentId, cancellationToken);
     }
 
     /// <summary>

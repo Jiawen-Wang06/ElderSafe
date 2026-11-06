@@ -44,7 +44,7 @@ public sealed class AlertsHub : Hub
             return false;
         }
 
-        if (!await _residentAccess.IsAssignedAsync(caregiverId.Value, residentId, Context.ConnectionAborted))
+        if (!await _residentAccess.CanViewAsync(caregiverId.Value, residentId, Context.ConnectionAborted))
         {
             return false;
         }

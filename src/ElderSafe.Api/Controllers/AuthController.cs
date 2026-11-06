@@ -1,9 +1,19 @@
+using ElderSafe.Api.Data;
 using ElderSafe.Api.Data.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ElderSafe.Api.Controllers;
+
+/// <summary>A new account.</summary>
+/// <param name="UserName">Used to sign in, and to assign a caregiver.</param>
+/// <param name="AccountType">Resident or Caregiver.</param>
+public sealed record RegisterRequest(
+    string UserName,
+    string Password,
+    string DisplayName,
+    AccountType AccountType);
 
 /// <summary>Credentials offered at sign-in.</summary>
 public sealed record SignInRequest(string UserName, string Password);
@@ -15,22 +25,66 @@ public sealed record CurrentCaregiverResponse(Guid Id, string DisplayName, strin
 /// Signing caregivers in and out.
 /// </summary>
 /// <remarks>
-/// There is deliberately no registration endpoint. Signing in proves who
-/// somebody is; it must not decide what they may see. Access to a resident is
-/// granted by assignment, and a public demo with self-registration plus
-/// self-claimed access would be RISK-14 in one step.
+/// Registering proves who somebody is and grants access to nothing. A new
+/// caregiver account sees no residents until one assigns them; a new resident
+/// account sees only itself. That separation is what makes open registration
+/// safe here — it is self-claimed *access*, not self-service identity, that
+/// would be RISK-14.
 /// </remarks>
 [ApiController]
 [Route("api/auth")]
 public sealed class AuthController : ControllerBase
 {
-    private readonly SignInManager<Caregiver> _signInManager;
-    private readonly UserManager<Caregiver> _userManager;
+    private readonly SignInManager<UserAccount> _signInManager;
+    private readonly UserManager<UserAccount> _userManager;
+    private readonly ElderSafeDbContext _context;
 
-    public AuthController(SignInManager<Caregiver> signInManager, UserManager<Caregiver> userManager)
+    public AuthController(
+        SignInManager<UserAccount> signInManager,
+        UserManager<UserAccount> userManager,
+        ElderSafeDbContext context)
     {
         _signInManager = signInManager;
         _userManager = userManager;
+        _context = context;
+    }
+
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    {
+        var account = new UserAccount
+        {
+            Id = Guid.NewGuid(),
+            UserName = request.UserName,
+            Email = request.UserName,
+            DisplayName = request.DisplayName,
+            AccountType = request.AccountType
+        };
+
+        var created = await _userManager.CreateAsync(account, request.Password);
+
+        if (!created.Succeeded)
+        {
+            return BadRequest(new { errors = created.Errors.Select(e => e.Description) });
+        }
+
+        // A resident account owns one resident record from the moment it
+        // exists, so there is never a resident account with nothing to
+        // configure.
+        if (request.AccountType == AccountType.Resident)
+        {
+            _context.Residents.Add(new Resident
+            {
+                Id = Guid.NewGuid(),
+                DisplayName = request.DisplayName,
+                AccountId = account.Id
+            });
+
+            await _context.SaveChangesAsync();
+        }
+
+        return NoContent();
     }
 
     [HttpPost("sign-in")]
