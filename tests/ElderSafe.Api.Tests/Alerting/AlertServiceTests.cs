@@ -2,6 +2,7 @@ using ElderSafe.Api.Alerting;
 using ElderSafe.Api.Data;
 using ElderSafe.Api.Data.Entities;
 using ElderSafe.Api.Detection;
+using ElderSafe.Api.Security;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -18,6 +19,7 @@ public class AlertServiceTests : IDisposable
     private readonly ElderSafeDbContext _context;
     private readonly FakeTimeProvider _clock;
     private readonly RecordingDispatch _dispatch;
+    private readonly RecordingNotifier _notifier;
     private readonly AlertService _service;
 
     public AlertServiceTests()
@@ -34,6 +36,7 @@ public class AlertServiceTests : IDisposable
 
         _clock = new FakeTimeProvider(Origin);
         _dispatch = new RecordingDispatch();
+        _notifier = new RecordingNotifier();
 
         _service = new AlertService(
             _context,
@@ -42,6 +45,8 @@ public class AlertServiceTests : IDisposable
             _dispatch,
             _clock,
             new AlertServiceOptions(),
+            new ResidentAccess(_context),
+            _notifier,
             NullLogger<AlertService>.Instance);
     }
 
@@ -259,6 +264,70 @@ public class AlertServiceTests : IDisposable
         Assert.Null(_context.Alerts.Single(a => a.Id == alert.Id).AcknowledgedAt);
     }
 
+    [Fact(DisplayName = "REQ-FALL-02 publishes a new alert to connected caregivers")]
+    [Trait("Requirement", "REQ-FALL-02")]
+    public async Task Publishes_a_new_alert_to_connected_caregivers()
+    {
+        var resident = AddResident();
+        AddReadings(resident.Id, FallWindow());
+
+        await _service.EvaluateFallAsync(resident.Id);
+
+        var published = Assert.Single(_notifier.Raised);
+
+        Assert.Equal(resident.Id, published.ResidentId);
+        Assert.Equal("Fall", published.Kind);
+    }
+
+    [Fact(DisplayName = "REQ-FALL-02 publishes an acknowledgement so other caregivers see it was handled")]
+    [Trait("Requirement", "REQ-FALL-02")]
+    public async Task Publishes_an_acknowledgement_so_other_caregivers_see_it_was_handled()
+    {
+        var resident = AddResident();
+        var caregiver = AddCaregiver(resident.Id, order: 0);
+        var alert = AddOpenAlert(resident.Id);
+
+        await _service.AcknowledgeAsync(alert.Id, caregiver.Id);
+
+        var published = Assert.Single(_notifier.Updated);
+
+        Assert.Equal(alert.Id, published.Id);
+        Assert.NotNull(published.AcknowledgedAt);
+    }
+
+    [Fact(DisplayName = "REQ-FALL-02 publishes an escalation")]
+    [Trait("Requirement", "REQ-FALL-02")]
+    public async Task Publishes_an_escalation()
+    {
+        var resident = AddResident();
+        AddCaregiver(resident.Id, order: 0);
+        AddCaregiver(resident.Id, order: 1);
+        AddOpenAlert(resident.Id);
+
+        _clock.Advance(Timeout);
+
+        await _service.ApplyEscalationAsync();
+
+        var published = Assert.Single(_notifier.Updated);
+
+        Assert.Equal(1, published.EscalationLevel);
+    }
+
+    [Fact(DisplayName = "REQ-FALL-02 stores the alert even when it cannot be published")]
+    [Trait("Requirement", "REQ-FALL-02")]
+    public async Task Stores_the_alert_even_when_it_cannot_be_published()
+    {
+        var resident = AddResident();
+        AddReadings(resident.Id, FallWindow());
+
+        _notifier.Throws = true;
+
+        var alert = await _service.EvaluateFallAsync(resident.Id);
+
+        Assert.NotNull(alert);
+        Assert.Single(_context.Alerts);
+    }
+
     private Resident AddResident(bool emergencyCallEnabled = false)
     {
         return AddResident("Resident A", emergencyCallEnabled);
@@ -386,6 +455,39 @@ public class AlertServiceTests : IDisposable
         }
 
         return points;
+    }
+
+    private sealed class RecordingNotifier : IAlertNotifier
+    {
+        public List<AlertView> Raised { get; } = new();
+
+        public List<AlertView> Updated { get; } = new();
+
+        public bool Throws { get; set; }
+
+        public Task AlertRaisedAsync(AlertView alert, CancellationToken cancellationToken = default)
+        {
+            if (Throws)
+            {
+                throw new InvalidOperationException("the hub is unreachable");
+            }
+
+            Raised.Add(alert);
+
+            return Task.CompletedTask;
+        }
+
+        public Task AlertUpdatedAsync(AlertView alert, CancellationToken cancellationToken = default)
+        {
+            if (Throws)
+            {
+                throw new InvalidOperationException("the hub is unreachable");
+            }
+
+            Updated.Add(alert);
+
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class RecordingDispatch : IEmergencyDispatch

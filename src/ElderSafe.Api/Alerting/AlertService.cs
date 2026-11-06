@@ -1,6 +1,7 @@
 using ElderSafe.Api.Data;
 using ElderSafe.Api.Data.Entities;
 using ElderSafe.Api.Detection;
+using ElderSafe.Api.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace ElderSafe.Api.Alerting;
@@ -25,6 +26,8 @@ public sealed class AlertService
     private readonly IEmergencyDispatch _dispatch;
     private readonly TimeProvider _timeProvider;
     private readonly AlertServiceOptions _options;
+    private readonly IResidentAccess _residentAccess;
+    private readonly IAlertNotifier _notifier;
     private readonly ILogger<AlertService> _logger;
 
     public AlertService(
@@ -34,6 +37,8 @@ public sealed class AlertService
         IEmergencyDispatch dispatch,
         TimeProvider timeProvider,
         AlertServiceOptions options,
+        IResidentAccess residentAccess,
+        IAlertNotifier notifier,
         ILogger<AlertService> logger)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
@@ -42,6 +47,8 @@ public sealed class AlertService
         _dispatch = dispatch ?? throw new ArgumentNullException(nameof(dispatch));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _residentAccess = residentAccess ?? throw new ArgumentNullException(nameof(residentAccess));
+        _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -107,6 +114,8 @@ public sealed class AlertService
         _logger.LogInformation(
             "Fall alert {AlertId} raised for resident {ResidentId}", alert.Id, residentId);
 
+        await NotifyAsync(alert.Id, raised: true, cancellationToken);
+
         return alert;
     }
 
@@ -154,6 +163,8 @@ public sealed class AlertService
         AddAudit(now, "AcknowledgedAlert", alert.ResidentId, $"Alert {alert.Id} by caregiver {caregiverId}", caregiverId);
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        await NotifyAsync(alert.Id, raised: false, cancellationToken);
 
         return true;
     }
@@ -212,6 +223,8 @@ public sealed class AlertService
             .Where(a => a.AcknowledgedAt == null)
             .ToListAsync(cancellationToken);
 
+        var changed = new List<Guid>();
+
         foreach (var alert in openAlerts)
         {
             var settings = await BuildSettingsAsync(alert.ResidentId, cancellationToken);
@@ -224,14 +237,25 @@ public sealed class AlertService
 
                 AddAudit(now, "EscalatedAlert", alert.ResidentId,
                     $"Alert {alert.Id} to level {alert.EscalationLevel}: {decision.Reason}");
+
+                changed.Add(alert.Id);
             }
             else if (decision.Action == EscalationAction.PlaceEmergencyCall)
             {
                 await TryDispatchAsync(alert, now, cancellationToken);
+
+                changed.Add(alert.Id);
             }
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Notified after saving, so a caregiver is never told about a state
+        // the database does not hold.
+        foreach (var alertId in changed)
+        {
+            await NotifyAsync(alertId, raised: false, cancellationToken);
+        }
     }
 
     private async Task TryDispatchAsync(Alert alert, DateTimeOffset now, CancellationToken cancellationToken)
@@ -288,9 +312,62 @@ public sealed class AlertService
         Guid residentId,
         CancellationToken cancellationToken)
     {
-        return _context.ResidentCaregivers.AnyAsync(
-            rc => rc.CaregiverId == caregiverId && rc.ResidentId == residentId,
-            cancellationToken);
+        return _residentAccess.IsAssignedAsync(caregiverId, residentId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads one alert back in the shape a caregiver sees, for notification.
+    /// </summary>
+    private Task<AlertView?> ViewAsync(Guid alertId, CancellationToken cancellationToken)
+    {
+        return _context.Alerts
+            .Where(a => a.Id == alertId)
+            .Select(a => new AlertView(
+                a.Id,
+                a.ResidentId,
+                a.Resident.DisplayName,
+                a.Kind.ToString(),
+                a.RaisedAt,
+                a.EscalationLevel,
+                a.AcknowledgedAt,
+                a.DispatchedAt))
+            .FirstOrDefaultAsync(cancellationToken)!;
+    }
+
+    /// <summary>
+    /// Publishes a change to connected caregivers, never letting a failed
+    /// push undo work that is already saved.
+    /// </summary>
+    /// <remarks>
+    /// The alert is stored before this runs and signing in shows open alerts,
+    /// so a notification that never arrives is recoverable (RISK-08). Letting
+    /// an exception here roll back an acknowledgement would turn a delivery
+    /// problem into a data problem.
+    /// </remarks>
+    private async Task NotifyAsync(Guid alertId, bool raised, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var view = await ViewAsync(alertId, cancellationToken);
+
+            if (view is null)
+            {
+                return;
+            }
+
+            if (raised)
+            {
+                await _notifier.AlertRaisedAsync(view, cancellationToken);
+
+                return;
+            }
+
+            await _notifier.AlertUpdatedAsync(view, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Could not notify caregivers about alert {AlertId}", alertId);
+        }
     }
 
     private async Task<ResidentAlertSettings> BuildSettingsAsync(
