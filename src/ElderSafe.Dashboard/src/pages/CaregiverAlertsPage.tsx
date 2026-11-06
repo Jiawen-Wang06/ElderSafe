@@ -1,6 +1,6 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Loader2, Siren } from "lucide-react";
-import { useAuth } from "@/auth/AuthContext";
+import { useAuth } from "@/auth/useAuth";
 import { api, ApiError } from "@/lib/api";
 import type { AlertTrace, AlertView } from "@/lib/api";
 import { AccelerationTrace } from "@/components/AccelerationTrace";
@@ -41,17 +41,17 @@ export function CaregiverAlertsPage() {
   const [traces, setTraces] = useState<Record<string, AlertTrace>>({});
   const [traceError, setTraceError] = useState<string | null>(null);
 
+  // Memoised on the account rather than on a joined list of identifiers. The
+  // account object is replaced only when "who am I" is re-asked, so this is
+  // already stable between renders, and an effect that did restart would
+  // refetch and resubscribe — which is correct behaviour, not a bug to design
+  // around.
   const residents = useMemo(() => account?.residents ?? [], [account]);
 
-  // The identifiers rather than the array, so the effects below do not restart
-  // every time the account object is replaced by an identical one.
-  const residentKey = residents.map((resident) => resident.id).join(",");
-
   const load = useCallback(async () => {
+    // Nothing to fetch, and nothing to report: this account renders the
+    // "no residents" card instead of a list, so no state needs setting.
     if (residents.length === 0) {
-      setAlerts([]);
-      setLoading(false);
-
       return;
     }
 
@@ -69,10 +69,14 @@ export function CaregiverAlertsPage() {
     } finally {
       setLoading(false);
     }
-  }, [residentKey]);
+  }, [residents]);
 
   useEffect(() => {
-    void load();
+    async function run() {
+      await load();
+    }
+
+    void run();
   }, [load]);
 
   // A ticking clock so the wait column counts up. One second, because
@@ -83,13 +87,11 @@ export function CaregiverAlertsPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const loadRef = useRef(load);
-  loadRef.current = load;
-
   useEffect(() => {
+    // No subscription to make. The connection state is only rendered beside a
+    // list, and this account has none, so it is left alone rather than
+    // written to from an effect body.
     if (residents.length === 0) {
-      setConnection("disconnected");
-
       return;
     }
 
@@ -126,7 +128,7 @@ export function CaregiverAlertsPage() {
       // refetching is what keeps a dropped connection from silently becoming
       // a caregiver who stops being told about falls (RISK-08).
       void subscribe();
-      void loadRef.current();
+      void load();
     });
 
     hub.onclose(() => setConnection("disconnected"));
@@ -147,7 +149,7 @@ export function CaregiverAlertsPage() {
       stopped = true;
       void hub.stop();
     };
-  }, [residentKey]);
+  }, [residents, load]);
 
   async function acknowledge(alert: AlertView) {
     setAcknowledging(alert.id);
