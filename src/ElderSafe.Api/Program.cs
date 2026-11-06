@@ -21,6 +21,11 @@ builder.Services.Configure<EscalationOptions>(
     builder.Configuration.GetSection(EscalationOptions.SectionName));
 builder.Services.Configure<DemoDataOptions>(
     builder.Configuration.GetSection(DemoDataOptions.SectionName));
+builder.Services.Configure<AlertServiceOptions>(
+    builder.Configuration.GetSection(AlertServiceOptions.SectionName));
+
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IEmergencyDispatch, LoggingEmergencyDispatch>();
 
 // The detector and the policy take their options directly rather than
 // IOptions<T>, so they stay plain classes that a test can construct without
@@ -37,6 +42,28 @@ builder.Services.AddScoped<DemoDataSeeder>(provider =>
     new DemoDataSeeder(
         provider.GetRequiredService<ElderSafeDbContext>(),
         provider.GetRequiredService<IOptions<DemoDataOptions>>().Value));
+
+builder.Services.AddScoped<AlertService>(provider =>
+    new AlertService(
+        provider.GetRequiredService<ElderSafeDbContext>(),
+        provider.GetRequiredService<IFallDetector>(),
+        provider.GetRequiredService<IEscalationPolicy>(),
+        provider.GetRequiredService<IEmergencyDispatch>(),
+        provider.GetRequiredService<TimeProvider>(),
+        provider.GetRequiredService<IOptions<AlertServiceOptions>>().Value,
+        provider.GetRequiredService<ILogger<AlertService>>()));
+
+builder.Services.AddScoped<ReadingIngestionService>(provider =>
+    new ReadingIngestionService(
+        provider.GetRequiredService<ElderSafeDbContext>(),
+        provider.GetRequiredService<AlertService>()));
+
+builder.Services.AddHostedService<EscalationWorker>(provider =>
+    new EscalationWorker(
+        provider.GetRequiredService<IServiceScopeFactory>(),
+        provider.GetRequiredService<TimeProvider>(),
+        provider.GetRequiredService<IOptions<AlertServiceOptions>>().Value,
+        provider.GetRequiredService<ILogger<EscalationWorker>>()));
 
 var app = builder.Build();
 
