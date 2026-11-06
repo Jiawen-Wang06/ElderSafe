@@ -35,8 +35,11 @@ venv/
 .coverage
 htmlcov/
 
-# Data and models (keep datasets out of git; record their source in docs/06-soup.md)
-data/
+# Datasets downloaded for model training; record their source in docs/06-soup.md.
+# Anchored to the repository root and named so it cannot collide with a source
+# folder: git sets core.ignorecase=true on Windows, so a bare `data/` also
+# matched `src/ElderSafe.Api/Data/` and silently kept it out of the repository.
+/datasets/
 *.csv.zip
 # Commit trained model files only when a release needs them, with their metrics:
 # !models/*.onnx
