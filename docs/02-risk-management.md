@@ -70,6 +70,7 @@ S = severity, P = probability, R = S × P.
 | RISK-06 | An alert is raised but nobody responds | Caregiver asleep, out of earshot, or unavailable. Validated by finding F-03 | Delayed help; harm as RISK-01 | 4 | 4 | 16 | Alerts require acknowledgement and escalate after [2 minutes] (REQ-FALL-03, REQ-WANDER-03); delivery does not depend on anyone being within earshot (REQ-FALL-02, REQ-WANDER-02) | 4 | 2 | 8 |
 | RISK-07 | Escalation stops before reaching anyone available | Escalation configured to too few caregivers | The alert dies with one unavailable caregiver; harm as RISK-01 | 4 | 3 | 12 | Default is every assigned caregiver, and the minimum is 1 (REQ-FALL-04, REQ-WANDER-04); configuration changes are recorded in the audit log | 4 | 2 | 8 |
 | RISK-08 | An alert is lost in delivery | Network failure, browser closed, service outage | Delayed help; harm as RISK-01 | 4 | 3 | 12 | Alerts stay open until acknowledged and escalate on timeout (REQ-FALL-03, REQ-WANDER-03); health checks on the alerting path | 4 | 2 | 8 |
+| RISK-16 | An alert is raised but no caregiver has an active session | Session expired, browser closed, phone asleep, caregiver not at a screen | Nobody sees the alert, so help is delayed. The harm is the same as RISK-01, and the cause is the same shape as finding F-03: the system depends on somebody being present | 4 | 4 | 16 | Escalation runs server-side and continues regardless of who is connected (REQ-FALL-03); open alerts are shown on the next sign-in, so a missed push is recoverable; an emergency call still follows an exhausted chain (REQ-FALL-06) | 4 | 3 | 12 |
 
 ### Emergency-call hazards
 
@@ -97,6 +98,13 @@ That is the honest limit of this design. ElderSafe reduces the time until someon
 1. The intended use states that the product supports routine supervision and does not replace it ([intended use](01-intended-use.md) section 1). Residents and caregivers must not be told it is a guarantee.
 2. The known limitations in the README and the intended-use document must stay accurate, and must say plainly that some falls will be missed.
 
+**The largest open item is RISK-16.** Every delivery path in this version requires a caregiver to be
+signed in and looking at a screen. The escalation chain limits the harm, because an unresponsive caregiver
+and an expired session are indistinguishable to the server and both move the alert along. But if no
+assigned caregiver has a session, nobody is told until one signs in or the chain reaches an emergency call.
+Closing it needs a notification channel that does not depend on an application session, which is deferred
+([ADR-007](adr/ADR-007-dashboard-only-notification.md)).
+
 **Overall assessment.** Against the intended use, residual risk is judged acceptable for a supervision aid used alongside normal care, and would not be acceptable for a product presented as a replacement for supervision.
 
 ## 5. Risks introduced by risk controls
@@ -120,3 +128,4 @@ ISO 14971 asks whether a control creates a new hazard. Two here do:
 | 0.1 | 2026-11-05 | First draft: 13 hazards, scales, residual risk assessment |
 | 0.2 | 2026-11-05 | RISK-14 added (unauthenticated access), following [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
 | 0.3 | 2026-11-05 | RISK-15 added (fabricated readings), following the decision to pair devices to residents |
+| 0.4 | 2026-11-05 | RISK-16 added (no caregiver has an active session), following [ADR-007](adr/ADR-007-dashboard-only-notification.md) |

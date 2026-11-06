@@ -71,7 +71,13 @@
 | REQ-AI-01 | A shift summary shall mention only events stored in the system, and shall cite the identifier of each event it mentions. | On the evaluation set, no summary states an event that is absent from the input, and no summary omits an alert that was escalated. Every cited identifier exists. | UN-08; RISK-13 | Evaluation suite in CI |
 | REQ-AI-02 | The system shall validate a generated summary against the events it was given, and shall not show a summary that fails validation. | Validation rejects a summary citing an identifier absent from the input, and one omitting an escalated alert. A rejected summary is not displayed; the caregiver sees the underlying events instead. Validation runs on every summary, whichever generator produced it. | UN-08; RISK-13 | Unit tests on the validator, with no model call |
 
-## 7. Decisions and open items
+## 7. Notification delivery
+
+| ID | Requirement | Acceptance criteria | Comes from | Verified by |
+| --- | --- | --- | --- | --- |
+| REQ-NOTIFY-01 | The system shall notify an assigned caregiver through a channel that does not require an open application session. | A caregiver with no active session is still told that an alert needs attention. The notification names no resident and carries no health information; details require signing in. | UN-04, UN-12; RISK-16 | **Not yet verified. Deferred — see [ADR-007](adr/ADR-007-dashboard-only-notification.md).** |
+
+## 8. Decisions and open items
 
 1. **Emergency calls are simulated.** Automatically dialling 911 is hard to do responsibly: telephony providers restrict it, a false call has real consequences, and a portfolio project must never place one. The system calls a dispatch interface, and this project supplies a simulator. To be recorded as an ADR when the design is written.
 2. **Numbers in brackets** are placeholders. Detection and false-alarm targets are set after the first model evaluation. Response timeout and alert latency need clinician input.
@@ -80,7 +86,7 @@
 5. **Detection window.** Interview 1 found that a fall takes under three seconds (finding F-01). The detector's input window must be short enough to contain the fall and its impact rather than averaging them away. The exact window is a tuning decision recorded with the model, driven by this finding.
 6. **Open:** nothing yet requires an audible alert on a device in the home. Finding F-03 suggests one may help, but it must not become the only delivery path. Pending the next interview.
 
-## 8. Revision history
+## 9. Revision history
 
 | Version | Date | Change |
 | --- | --- | --- |
@@ -90,3 +96,4 @@
 | 0.4 | 2026-11-05 | REQ-AI-02 added, from the summary validator design in [ADR-005](adr/ADR-005-grounded-llm-summary.md) |
 | 0.5 | 2026-11-05 | REQ-SEC-03 added: caregivers must authenticate. See [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
 | 0.6 | 2026-11-05 | REQ-SEC-04 added: readings accepted only from a paired, authenticated device |
+| 0.7 | 2026-11-05 | REQ-NOTIFY-01 added: notification must not depend on an open session. Deferred, and recorded as unverified |

@@ -221,6 +221,7 @@ Stated plainly, because a reviewer will spot it anyway:
 - **Passwords live in the application's own database.** Hashed by Identity, but a real deployment should hand sign-on to Entra ID and store none ([ADR-006](adr/ADR-006-identity-cookie-auth.md)).
 - **The live demo has published credentials.** Anyone who reads the README can sign in, which is only acceptable because every record is synthetic.
 - **In-process scheduling.** Escalation timers die with the process. A real system needs durable scheduling.
+- **Alerts reach the dashboard and nowhere else.** A caregiver who is not signed in and looking at a screen is not told. The escalation chain limits the harm, but if no assigned caregiver has an active session nobody is notified until one signs in. This is RISK-16, the largest residual risk in the project, and [ADR-007](adr/ADR-007-dashboard-only-notification.md) explains why push notification was deferred.
 - **No FHIR export.** Deferred entirely.
 - **The shift summary ships with the template generator by default.** The grounding and the validator are real and tested, but unless a key is configured the text is produced from a template rather than a model. The validator behaves identically either way, which is the point, but no claim is made about a real model's output quality until one has been run against the evaluation scenarios.
 
