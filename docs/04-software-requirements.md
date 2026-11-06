@@ -71,13 +71,23 @@
 | REQ-AI-01 | A shift summary shall mention only events stored in the system, and shall cite the identifier of each event it mentions. | On the evaluation set, no summary states an event that is absent from the input, and no summary omits an alert that was escalated. Every cited identifier exists. | UN-08; RISK-13 | Evaluation suite in CI |
 | REQ-AI-02 | The system shall validate a generated summary against the events it was given, and shall not show a summary that fails validation. | Validation rejects a summary citing an identifier absent from the input, and one omitting an escalated alert. A rejected summary is not displayed; the caregiver sees the underlying events instead. Validation runs on every summary, whichever generator produced it. | UN-08; RISK-13 | Unit tests on the validator, with no model call |
 
-## 7. Notification delivery
+## 7. Resident configuration
+
+| ID | Requirement | Acceptance criteria | Comes from | Verified by |
+| --- | --- | --- | --- | --- |
+| REQ-CFG-01 | A resident account shall be able to change its escalation limit and emergency-call setting, and no other account shall. | The resident's own account can change both. A caregiver assigned to that resident can read them and cannot change them. An escalation limit below 1 is refused. | UN-09; RISK-17, RISK-07 | Automated test |
+| REQ-CFG-02 | A resident account shall be able to assign a caregiver by the username they registered with. | A known caregiver account is assigned and appears in the escalation order. An unknown username is refused. Assigning the same caregiver twice is refused. | UN-04; RISK-12 | Automated test |
+| REQ-CFG-03 | The system shall refuse any change that would leave a resident with no assigned caregivers. | Removing the last caregiver is refused and the assignment remains. | UN-04; RISK-07, RISK-17 | Automated test |
+| REQ-CFG-04 | Registering an account shall grant access to no resident other than one the account owns. | A newly registered caregiver account can read no resident until assigned. A newly registered resident account owns exactly one resident and can read no other. | UN-06; RISK-14 | Automated test |
+| REQ-CFG-05 | Every configuration change shall be recorded in the audit log and announced to the resident's assigned caregivers. | The audit entry names the acting account. Connected caregivers receive the change. | UN-07; RISK-17 | Automated test |
+
+## 8. Notification delivery
 
 | ID | Requirement | Acceptance criteria | Comes from | Verified by |
 | --- | --- | --- | --- | --- |
 | REQ-NOTIFY-01 | The system shall notify an assigned caregiver through a channel that does not require an open application session. | A caregiver with no active session is still told that an alert needs attention. The notification names no resident and carries no health information; details require signing in. | UN-04, UN-12; RISK-16 | **Not yet verified. Deferred — see [ADR-007](adr/ADR-007-dashboard-only-notification.md).** |
 
-## 8. Decisions and open items
+## 9. Decisions and open items
 
 1. **Emergency calls are simulated.** Automatically dialling 911 is hard to do responsibly: telephony providers restrict it, a false call has real consequences, and a portfolio project must never place one. The system calls a dispatch interface, and this project supplies a simulator. To be recorded as an ADR when the design is written.
 2. **Numbers in brackets** are placeholders. Detection and false-alarm targets are set after the first model evaluation. Response timeout and alert latency need clinician input.
@@ -86,7 +96,7 @@
 5. **Detection window.** Interview 1 found that a fall takes under three seconds (finding F-01). The detector's input window must be short enough to contain the fall and its impact rather than averaging them away. The exact window is a tuning decision recorded with the model, driven by this finding.
 6. **Open:** nothing yet requires an audible alert on a device in the home. Finding F-03 suggests one may help, but it must not become the only delivery path. Pending the next interview.
 
-## 9. Revision history
+## 10. Revision history
 
 | Version | Date | Change |
 | --- | --- | --- |
@@ -97,3 +107,4 @@
 | 0.5 | 2026-11-05 | REQ-SEC-03 added: caregivers must authenticate. See [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
 | 0.6 | 2026-11-05 | REQ-SEC-04 added: readings accepted only from a paired, authenticated device |
 | 0.7 | 2026-11-05 | REQ-NOTIFY-01 added: notification must not depend on an open session. Deferred, and recorded as unverified |
+| 0.8 | 2026-11-06 | REQ-CFG-01 to 05 added. REQ-FALL-04 and REQ-FALL-05 had been showing as verified while only the honouring of those settings was tested and nothing could change them |
