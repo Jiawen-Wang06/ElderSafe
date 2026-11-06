@@ -76,3 +76,49 @@ jobs:
           name: test-results
           path: artifacts/**/*.trx
           if-no-files-found: error
+
+  traceability:
+  name: Traceability
+  runs-on: ubuntu-latest
+  needs: test
+  steps:
+    - name: Check out the repository
+      uses: actions/checkout@v4
+
+    # The matrix must describe the run that produced the results, not a
+    # fresh run that might differ.
+    - name: Download test results
+      uses: actions/download-artifact@v4
+      with:
+        name: test-results
+        path: artifacts
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    # No --check yet. A requirement counts as accounted for when it has a
+    # passing test or is marked deferred in the requirements document, and
+    # some are still neither. The gate turns on once that list is empty.
+    - name: Generate the traceability matrix
+      run: |
+        python tools/generate_traceability.py \
+          --results artifacts \
+          --out artifacts/traceability.md \
+          | tee artifacts/summary.txt
+
+    - name: Publish the summary
+      if: always()
+      run: |
+        echo "## Requirements traceability" >> "$GITHUB_STEP_SUMMARY"
+        cat artifacts/summary.txt >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        cat artifacts/traceability.md >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload the traceability matrix
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: traceability-matrix
+        path: artifacts/traceability.md
