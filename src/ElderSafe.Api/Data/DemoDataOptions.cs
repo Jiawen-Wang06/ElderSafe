@@ -14,4 +14,14 @@ public sealed class DemoDataOptions
     /// (ADR-006).
     /// </summary>
     public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Password given to every seeded demo caregiver.
+    /// </summary>
+    /// <remarks>
+    /// Published in the README, which is only acceptable because every seeded
+    /// record is invented and the demo holds nothing real. Seeding is off by
+    /// default so these credentials exist nowhere else (ADR-006).
+    /// </remarks>
+    public string CaregiverPassword { get; set; } = "Demo-Passw0rd!";
 }

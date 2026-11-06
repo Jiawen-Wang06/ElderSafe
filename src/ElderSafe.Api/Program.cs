@@ -1,6 +1,9 @@
 using ElderSafe.Api.Alerting;
 using ElderSafe.Api.Data;
+using ElderSafe.Api.Data.Entities;
 using ElderSafe.Api.Detection;
+using ElderSafe.Api.Security;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -23,6 +26,59 @@ builder.Services.Configure<DemoDataOptions>(
     builder.Configuration.GetSection(DemoDataOptions.SectionName));
 builder.Services.Configure<AlertServiceOptions>(
     builder.Configuration.GetSection(AlertServiceOptions.SectionName));
+
+builder.Services.AddIdentity<Caregiver, IdentityRole<Guid>>(options =>
+{
+    options.Password.RequiredLength = 12;
+    options.SignIn.RequireConfirmedAccount = false;
+    options.User.RequireUniqueEmail = false;
+
+    // Slows password guessing against a username an attacker already knows.
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+})
+.AddEntityFrameworkStores<ElderSafeDbContext>()
+.AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.Name = "ElderSafe.Auth";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+
+    // Strict rather than Lax: the dashboard is served from the same origin as
+    // the API, so nothing legitimate is cross-site, and a cookie that is never
+    // sent cross-site cannot be used for request forgery. Antiforgery tokens
+    // would be the belt to this braces and are not implemented yet.
+    options.Cookie.SameSite = SameSiteMode.Strict;
+
+    // Absolute rather than sliding, so a session genuinely ends after eight
+    // hours rather than lasting as long as somebody keeps a tab open
+    // (REQ-SEC-03).
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = false;
+
+    // This is an API, not a web site: an unauthenticated call gets a status
+    // code, not a redirect to a sign-in page that does not exist.
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+
+        return Task.CompletedTask;
+    };
+
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+
+        return Task.CompletedTask;
+    };
+});
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentCaregiver, HttpContextCurrentCaregiver>();
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IEmergencyDispatch, LoggingEmergencyDispatch>();
@@ -83,6 +139,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

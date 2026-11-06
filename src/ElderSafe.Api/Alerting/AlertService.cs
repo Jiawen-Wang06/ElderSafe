@@ -112,9 +112,12 @@ public sealed class AlertService
 
     /// <summary>
     /// Records that a caregiver has acknowledged an alert (REQ-FALL-03,
-    /// REQ-SEC-02).
+    /// REQ-SEC-01, REQ-SEC-02).
     /// </summary>
-    /// <returns>False if no such alert exists.</returns>
+    /// <returns>
+    /// False if no such alert exists, or the caregiver is not assigned to its
+    /// resident. The caller cannot tell the two apart.
+    /// </returns>
     public async Task<bool> AcknowledgeAsync(
         Guid alertId,
         Guid caregiverId,
@@ -124,6 +127,14 @@ public sealed class AlertService
             .FirstOrDefaultAsync(a => a.Id == alertId, cancellationToken);
 
         if (alert is null)
+        {
+            return false;
+        }
+
+        // Indistinguishable from "no such alert" on purpose: telling an
+        // unassigned caregiver that the alert exists confirms a resident they
+        // have no business knowing about (RISK-12).
+        if (!await IsAssignedAsync(caregiverId, alert.ResidentId, cancellationToken))
         {
             return false;
         }
@@ -157,11 +168,17 @@ public sealed class AlertService
     /// has to remember the filter on its own, and the one that forgets is
     /// RISK-12.
     /// </remarks>
-    public async Task<IReadOnlyList<AlertView>> GetForResidentAsync(
+    public async Task<IReadOnlyList<AlertView>?> GetForResidentAsync(
+        Guid caregiverId,
         Guid residentId,
         bool openOnly = true,
         CancellationToken cancellationToken = default)
     {
+        if (!await IsAssignedAsync(caregiverId, residentId, cancellationToken))
+        {
+            return null;
+        }
+
         var query = _context.Alerts
             .Where(a => a.ResidentId == residentId);
 
@@ -256,6 +273,24 @@ public sealed class AlertService
         _logger.LogError("Emergency call for alert {AlertId} could not be placed", alert.Id);
 
         AddAudit(now, "EmergencyCallFailed", alert.ResidentId, $"Alert {alert.Id}");
+    }
+
+    /// <summary>
+    /// Whether this caregiver is assigned to this resident (REQ-SEC-01).
+    /// </summary>
+    /// <remarks>
+    /// Signing in proves identity; this is what grants access. The check lives
+    /// beside the queries so that every caregiver-facing path passes through
+    /// it, rather than each controller remembering to filter (RISK-12).
+    /// </remarks>
+    private Task<bool> IsAssignedAsync(
+        Guid caregiverId,
+        Guid residentId,
+        CancellationToken cancellationToken)
+    {
+        return _context.ResidentCaregivers.AnyAsync(
+            rc => rc.CaregiverId == caregiverId && rc.ResidentId == residentId,
+            cancellationToken);
     }
 
     private async Task<ResidentAlertSettings> BuildSettingsAsync(

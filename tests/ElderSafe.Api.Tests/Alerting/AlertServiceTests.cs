@@ -243,12 +243,33 @@ public class AlertServiceTests : IDisposable
         Assert.Equal(2, _dispatch.Calls.Count);
     }
 
+    [Fact(DisplayName = "REQ-SEC-01 refuses to acknowledge an alert for a resident the caregiver is not assigned to")]
+    [Trait("Requirement", "REQ-SEC-01")]
+    public async Task Refuses_to_acknowledge_an_alert_for_a_resident_the_caregiver_is_not_assigned_to()
+    {
+        var resident = AddResident();
+        var otherResident = AddResident("Resident B");
+        var caregiver = AddCaregiver(otherResident.Id, order: 0);
+        var alert = AddOpenAlert(resident.Id);
+
+        Assert.False(await _service.AcknowledgeAsync(alert.Id, caregiver.Id));
+
+        _context.ChangeTracker.Clear();
+
+        Assert.Null(_context.Alerts.Single(a => a.Id == alert.Id).AcknowledgedAt);
+    }
+
     private Resident AddResident(bool emergencyCallEnabled = false)
+    {
+        return AddResident("Resident A", emergencyCallEnabled);
+    }
+
+    private Resident AddResident(string displayName, bool emergencyCallEnabled = false)
     {
         var resident = new Resident
         {
             Id = Guid.NewGuid(),
-            DisplayName = "Resident A",
+            DisplayName = displayName,
             EmergencyCallEnabled = emergencyCallEnabled
         };
 
