@@ -86,6 +86,7 @@ S = severity, P = probability, R = S × P.
 | RISK-14 | A stranger reads resident data | No authentication on an endpoint, or a session that does not expire | Location and health events disclosed to someone with no care relationship. Privacy breach under PHIPA. A resident with dementia whose whereabouts are exposed is also at risk of harm from a bad actor | 4 | 3 | 12 | Authentication required on every endpoint returning resident data (REQ-SEC-03); sessions expire; access recorded in the audit log (REQ-SEC-02) | 4 | 1 | 4 |
 | RISK-12 | A caregiver sees another resident's data | Missing or wrong authorization check | A caregiver responds to the wrong person, or goes to the wrong address, while the real resident waits. Privacy breach under PHIPA | 3 | 3 | 9 | Per-resident authorization on every endpoint (REQ-SEC-01); every view and acknowledgement recorded in the audit log (REQ-SEC-02) | 3 | 1 | 3 |
 | RISK-13 | A shift summary states an event that did not happen, or omits one that did | LLM hallucination or omission | The incoming shift acts on a wrong picture of the resident's night | 3 | 4 | 12 | Summaries are built only from stored events and cite their IDs (REQ-AI-01); an evaluation suite runs in CI on every change to the feature | 3 | 2 | 6 |
+| RISK-15 | Readings are fabricated for a resident | The readings endpoint accepts data from any caller, or a device credential is leaked or shared | Invented falls produce alerts that are not real, which is RISK-02 by another route; invented ordinary movement can mask a real fall, which is RISK-01. Fabricated location also misdirects a caregiver away from a resident who needs help | 4 | 3 | 12 | Readings accepted only from an authenticated device (REQ-SEC-04); each device is paired to one resident and the resident is derived from the pairing, so a credential cannot be used for anyone else; keys stored hashed | 4 | 2 | 8 |
 
 ## 4. Residual risk
 
@@ -118,3 +119,4 @@ ISO 14971 asks whether a control creates a new hazard. Two here do:
 | --- | --- | --- |
 | 0.1 | 2026-11-05 | First draft: 13 hazards, scales, residual risk assessment |
 | 0.2 | 2026-11-05 | RISK-14 added (unauthenticated access), following [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
+| 0.3 | 2026-11-05 | RISK-15 added (fabricated readings), following the decision to pair devices to residents |

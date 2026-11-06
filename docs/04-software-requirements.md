@@ -62,6 +62,7 @@
 | REQ-SEC-03 | The system shall require a caregiver to authenticate before any resident data is returned. | Every endpoint returning resident data refuses an unauthenticated request. The dashboard shows a sign-in screen until authentication succeeds. Sessions expire after [8 hours]. | UN-06; RISK-14 | Automated test on an unauthenticated request to each endpoint |
 | REQ-SEC-01 | The system shall show a caregiver only the residents assigned to them. | A request for an unassigned resident is refused on every endpoint, including direct API calls. | UN-06; RISK-12 | Automated test attempting cross-resident access |
 | REQ-SEC-02 | The system shall record every view and acknowledgement of resident data in an append-only audit log. | Each entry holds who, what, and when. Existing entries cannot be changed or deleted through the application. | UN-07; RISK-12 | Automated test |
+| REQ-SEC-04 | The system shall accept readings only from an authenticated device, and shall attribute them to the resident that device is paired to. | A request with no device credential, or an unrecognised one, is refused. The resident is taken from the pairing and never from the request, so a device credential cannot be used to post readings for another resident. Keys are stored hashed. | UN-06; RISK-15 | Automated test posting without a key, and with another device's key |
 
 ## 6. Shift summary (AI-assisted)
 
@@ -88,3 +89,4 @@
 | 0.3 | 2026-11-05 | Risk IDs traced; REQ-SYS-01, REQ-SEC-01, REQ-SEC-02 and REQ-AI-01 added |
 | 0.4 | 2026-11-05 | REQ-AI-02 added, from the summary validator design in [ADR-005](adr/ADR-005-grounded-llm-summary.md) |
 | 0.5 | 2026-11-05 | REQ-SEC-03 added: caregivers must authenticate. See [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
+| 0.6 | 2026-11-05 | REQ-SEC-04 added: readings accepted only from a paired, authenticated device |
