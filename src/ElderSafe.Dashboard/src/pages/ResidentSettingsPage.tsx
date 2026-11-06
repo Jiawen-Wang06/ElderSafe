@@ -129,6 +129,10 @@ export function ResidentSettingsPage() {
   }
 
   async function saveSettings() {
+    if (resident === null) {
+      return;
+    }
+
     setSaving(true);
     setSaveNotice(null);
     setSaveError(null);
@@ -146,11 +150,11 @@ export function ResidentSettingsPage() {
         current === null
           ? current
           : {
-              ...current,
-              escalationLimit,
-              emergencyCallEnabled,
-              emergencyContactPhoneNumber: normalizedContact,
-            },
+            ...current,
+            escalationLimit,
+            emergencyCallEnabled,
+            emergencyContactPhoneNumber: normalizedContact,
+          },
       );
       setSaveNotice("Saved.");
     } catch (error) {
@@ -165,6 +169,10 @@ export function ResidentSettingsPage() {
   }
 
   async function removeCaregiver(caregiver: AssignedCaregiverView) {
+    if (resident === null) {
+      return;
+    }
+
     setRemoving(caregiver.caregiverId);
     setRemoveError(null);
 
@@ -194,6 +202,10 @@ export function ResidentSettingsPage() {
   // narrowing in on someone else's address. One lookup per explicit
   // request is the simpler thing to reason about.
   async function searchCaregiver() {
+    if (resident === null) {
+      return;
+    }
+
     const trimmed = addEmail.trim();
 
     if (trimmed.length === 0) {
@@ -218,6 +230,10 @@ export function ResidentSettingsPage() {
   }
 
   async function addCaregiver() {
+    if (resident === null) {
+      return;
+    }
+
     const trimmed = addEmail.trim();
 
     if (trimmed.length === 0 || lookup?.found !== true || searchedEmail !== trimmed) {
