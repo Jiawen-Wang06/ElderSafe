@@ -15,6 +15,8 @@ public class ResidentConfigurationTests
     private const string SecondCaregiver = "demo.nurse@example.invalid";
 
     private static readonly Guid ResidentA = new("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid FirstCaregiverId = new("33333333-3333-3333-3333-333333333333");
+    private static readonly Guid SecondCaregiverId = new("44444444-4444-4444-4444-444444444444");
 
     private static async Task<HttpClient> SignedInAsync(ElderSafeWebAppFactory factory, string userName)
     {
@@ -332,6 +334,93 @@ public class ResidentConfigurationTests
 
         Assert.NotNull(remaining);
         Assert.Single(remaining!);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-08 a resident can reorder its assigned caregivers")]
+    [Trait("Requirement", "REQ-CFG-08")]
+    public async Task A_resident_can_reorder_its_assigned_caregivers()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/residents/{ResidentA}/caregivers/order",
+            new { CaregiverIds = new[] { SecondCaregiverId, FirstCaregiverId } });
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        var caregivers = await client.GetFromJsonAsync<List<AssignedCaregiverView>>(
+            $"/api/residents/{ResidentA}/caregivers");
+
+        Assert.NotNull(caregivers);
+        Assert.Equal(SecondCaregiverId, caregivers![0].CaregiverId);
+        Assert.Equal(0, caregivers[0].Order);
+        Assert.Equal(FirstCaregiverId, caregivers[1].CaregiverId);
+        Assert.Equal(1, caregivers[1].Order);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-08 reordering with a caregiver who is not assigned is refused")]
+    [Trait("Requirement", "REQ-CFG-08")]
+    public async Task Reordering_with_a_caregiver_who_is_not_assigned_is_refused()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/residents/{ResidentA}/caregivers/order",
+            new { CaregiverIds = new[] { FirstCaregiverId, Guid.NewGuid() } });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-08 reordering that omits a currently assigned caregiver is refused")]
+    [Trait("Requirement", "REQ-CFG-08")]
+    public async Task Reordering_that_omits_a_currently_assigned_caregiver_is_refused()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/residents/{ResidentA}/caregivers/order",
+            new { CaregiverIds = new[] { FirstCaregiverId } });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var caregivers = await client.GetFromJsonAsync<List<AssignedCaregiverView>>(
+            $"/api/residents/{ResidentA}/caregivers");
+
+        Assert.NotNull(caregivers);
+        Assert.Equal(2, caregivers!.Count);
+        Assert.Equal(FirstCaregiverId, caregivers[0].CaregiverId);
+        Assert.Equal(SecondCaregiverId, caregivers[1].CaregiverId);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-08 reordering with a duplicate caregiver id is refused")]
+    [Trait("Requirement", "REQ-CFG-08")]
+    public async Task Reordering_with_a_duplicate_caregiver_id_is_refused()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/residents/{ResidentA}/caregivers/order",
+            new { CaregiverIds = new[] { FirstCaregiverId, FirstCaregiverId } });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact(DisplayName = "REQ-CFG-08 a caregiver cannot reorder a resident's caregivers")]
+    [Trait("Requirement", "REQ-CFG-08")]
+    public async Task A_caregiver_cannot_reorder_a_residents_caregivers()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, FirstCaregiver);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/residents/{ResidentA}/caregivers/order",
+            new { CaregiverIds = new[] { SecondCaregiverId, FirstCaregiverId } });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact(DisplayName = "REQ-CFG-04 registering grants no access to another resident's data")]

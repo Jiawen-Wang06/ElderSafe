@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Check, Loader2, Search, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Loader2, Search, Trash2, X } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { api, ApiError } from "@/lib/api";
 import type { AssignedCaregiverView, CaregiverLookupResult, ResidentSettingsView } from "@/lib/api";
+import { selectableEscalationLimits } from "@/lib/escalation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,8 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-const escalationOptions = Array.from({ length: 10 }, (_, index) => index + 1);
 
 /**
  * The shown-when-nothing-is-configured placeholder (REQ-CFG-06).
@@ -54,6 +53,9 @@ export function ResidentSettingsPage() {
 
   const [removing, setRemoving] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+
+  const [reordering, setReordering] = useState<string | null>(null);
+  const [reorderError, setReorderError] = useState<string | null>(null);
 
   const [addEmail, setAddEmail] = useState("");
   const [searchedEmail, setSearchedEmail] = useState<string | null>(null);
@@ -128,7 +130,18 @@ export function ResidentSettingsPage() {
     );
   }
 
+  // The highest escalation limit worth offering right now, and what the
+  // stored value becomes once clamped to it. Recomputed on every render
+  // from `caregivers`, so adding or removing one updates both immediately
+  // — there is no separate stale copy of this that could fall out of sync.
+  const escalationCap = Math.max(1, Math.min(10, caregivers.length));
+  const effectiveEscalationLimit =
+    escalationLimit === null ? null : Math.min(escalationLimit, escalationCap);
+
   async function saveSettings() {
+    // Narrows the component-level null check again, locally: a nested
+    // function declaration is hoisted, so TypeScript cannot carry the
+    // outer `if (resident === null) return` guard's narrowing in here.
     if (resident === null) {
       return;
     }
@@ -140,21 +153,25 @@ export function ResidentSettingsPage() {
     const normalizedContact = contactNumber.trim().length === 0 ? null : contactNumber.trim();
 
     try {
+      // The value actually saved is the one clamped to the current
+      // caregiver count, not whatever was last loaded from the server —
+      // otherwise a stale value could be saved right back unchanged.
       await api.updateResidentSettings(resident.id, {
-        escalationLimit,
+        escalationLimit: effectiveEscalationLimit,
         emergencyCallEnabled,
         emergencyContactPhoneNumber: normalizedContact,
       });
 
+      setEscalationLimit(effectiveEscalationLimit);
       setSettings((current) =>
         current === null
           ? current
           : {
-            ...current,
-            escalationLimit,
-            emergencyCallEnabled,
-            emergencyContactPhoneNumber: normalizedContact,
-          },
+              ...current,
+              escalationLimit: effectiveEscalationLimit,
+              emergencyCallEnabled,
+              emergencyContactPhoneNumber: normalizedContact,
+            },
       );
       setSaveNotice("Saved.");
     } catch (error) {
@@ -192,6 +209,48 @@ export function ResidentSettingsPage() {
       );
     } finally {
       setRemoving(null);
+    }
+  }
+
+  // Swaps two adjacent caregivers' escalation position (REQ-CFG-08).
+  // Applied optimistically so the row moves immediately, then reconciled
+  // with the server: reverted on failure rather than left showing an order
+  // that was never actually saved.
+  async function moveCaregiver(index: number, direction: -1 | 1) {
+    if (resident === null) {
+      return;
+    }
+
+    const swapWith = index + direction;
+
+    if (swapWith < 0 || swapWith >= caregivers.length) {
+      return;
+    }
+
+    const previous = caregivers;
+    const swapped = [...caregivers];
+    [swapped[index], swapped[swapWith]] = [swapped[swapWith], swapped[index]];
+
+    // Renumbered to match the positions just swapped, not only the array
+    // order: the `order` field is what's rendered, and a refetch would
+    // show these same numbers once the server confirms the same change.
+    const reordered = swapped.map((c, position) => ({ ...c, order: position }));
+
+    setCaregivers(reordered);
+    setReordering(caregivers[index].caregiverId);
+    setReorderError(null);
+
+    try {
+      await api.reorderCaregivers(resident.id, reordered.map((c) => c.caregiverId));
+    } catch (error) {
+      setCaregivers(previous);
+      setReorderError(
+        error instanceof ApiError && error.details.length > 0
+          ? error.details.join(" ")
+          : "That order could not be saved.",
+      );
+    } finally {
+      setReordering(null);
     }
   }
 
@@ -265,6 +324,8 @@ export function ResidentSettingsPage() {
     }
   }
 
+  const escalationOptions = selectableEscalationLimits(caregivers.length);
+
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -299,7 +360,7 @@ export function ResidentSettingsPage() {
                   <select
                     id="escalation-limit"
                     className="h-8 w-full max-w-60 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                    value={escalationLimit === null ? "all" : escalationLimit}
+                    value={effectiveEscalationLimit === null ? "all" : effectiveEscalationLimit}
                     onChange={(event) =>
                       setEscalationLimit(
                         event.target.value === "all" ? null : Number(event.target.value),
@@ -313,6 +374,12 @@ export function ResidentSettingsPage() {
                       </option>
                     ))}
                   </select>
+                  {caregivers.length < 10 && (
+                    <p className="text-xs text-muted-foreground">
+                      Capped at {caregivers.length} — the number of caregivers
+                      currently assigned.
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-1.5">
@@ -391,6 +458,12 @@ export function ResidentSettingsPage() {
             </p>
           )}
 
+          {reorderError !== null && (
+            <p role="alert" className="text-sm text-destructive">
+              {reorderError}
+            </p>
+          )}
+
           {caregivers.length === 0 ? (
             <p className="text-sm text-muted-foreground">No caregivers assigned yet.</p>
           ) : (
@@ -405,9 +478,37 @@ export function ResidentSettingsPage() {
               </TableHeader>
 
               <TableBody>
-                {caregivers.map((caregiver) => (
+                {caregivers.map((caregiver, index) => (
                   <TableRow key={caregiver.caregiverId}>
-                    <TableCell>{caregiver.order + 1}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <div className="flex flex-col">
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={`Move ${caregiver.displayName} earlier`}
+                            onClick={() => void moveCaregiver(index, -1)}
+                            disabled={reordering !== null || index === 0}
+                          >
+                            <ChevronUp className="size-3.5" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={`Move ${caregiver.displayName} later`}
+                            onClick={() => void moveCaregiver(index, 1)}
+                            disabled={reordering !== null || index === caregivers.length - 1}
+                          >
+                            <ChevronDown className="size-3.5" aria-hidden="true" />
+                          </Button>
+                        </div>
+                        {reordering === caregiver.caregiverId ? (
+                          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          caregiver.order + 1
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium">{caregiver.displayName}</TableCell>
                     <TableCell className="text-muted-foreground">{caregiver.userName}</TableCell>
                     <TableCell className="text-right">
