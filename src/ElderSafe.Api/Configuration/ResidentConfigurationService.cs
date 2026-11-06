@@ -53,7 +53,13 @@ public enum ConfigurationOutcome
     LimitAboveMax,
 
     /// <summary>Refused because the emergency contact number was too long.</summary>
-    EmergencyContactPhoneNumberTooLong
+    EmergencyContactPhoneNumberTooLong,
+
+    /// <summary>
+    /// Refused because the proposed order was not a rearrangement of
+    /// exactly the caregivers already assigned.
+    /// </summary>
+    InvalidOrder
 }
 
 /// <summary>
@@ -326,6 +332,68 @@ public sealed class ResidentConfigurationService
 
         await RecordAndAnnounceAsync(
             residentId, actorAccountId, "RemovedCaregiver", caregiverId.ToString(), cancellationToken);
+
+        return ConfigurationOutcome.Changed;
+    }
+
+    /// <summary>
+    /// Rearranges the resident's existing caregiver assignments into the
+    /// given escalation order (REQ-CFG-08).
+    /// </summary>
+    /// <remarks>
+    /// Only a rearrangement: <paramref name="orderedCaregiverIds"/> must name
+    /// exactly the caregivers already assigned to this resident, each
+    /// exactly once. It is not a second way to assign or remove one — a
+    /// caregiver left out of the list would otherwise be dropped from the
+    /// chain by omission rather than by the explicit removal endpoint, and
+    /// an unfamiliar id would otherwise let this endpoint be used to probe
+    /// for caregivers that exist elsewhere in the system.
+    /// </remarks>
+    public async Task<ConfigurationOutcome> ReorderCaregiversAsync(
+        Guid residentId,
+        Guid actorAccountId,
+        IReadOnlyList<Guid> orderedCaregiverIds,
+        CancellationToken cancellationToken = default)
+    {
+        var assignments = await _context.ResidentCaregivers
+            .Where(rc => rc.ResidentId == residentId)
+            .ToListAsync(cancellationToken);
+
+        var currentIds = assignments.Select(a => a.CaregiverId).ToHashSet();
+        var requestedIds = orderedCaregiverIds.ToHashSet();
+
+        if (requestedIds.Count != orderedCaregiverIds.Count || !requestedIds.SetEquals(currentIds))
+        {
+            return ConfigurationOutcome.InvalidOrder;
+        }
+
+        // The unique (ResidentId, Order) index means a direct swap of final
+        // values cannot be saved in one step: row A's new position is row
+        // B's current one and vice versa, so EF Core cannot find an update
+        // order that never collides with the index and reports it as a
+        // circular dependency. Moving every row to a negative, guaranteed
+        // distinct position first breaks the cycle — no temporary value can
+        // equal another row's current or final one, so neither save has
+        // anything to wait on.
+        foreach (var assignment in assignments)
+        {
+            assignment.Order = -(assignment.Order + 1);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        for (var index = 0; index < orderedCaregiverIds.Count; index++)
+        {
+            var assignment = assignments.Single(a => a.CaregiverId == orderedCaregiverIds[index]);
+            assignment.Order = index;
+        }
+
+        await RecordAndAnnounceAsync(
+            residentId,
+            actorAccountId,
+            "ReorderedCaregivers",
+            string.Join(" > ", orderedCaregiverIds),
+            cancellationToken);
 
         return ConfigurationOutcome.Changed;
     }

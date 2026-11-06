@@ -26,6 +26,17 @@ public sealed record UpdateSettingsRequest(
 public sealed record AssignCaregiverRequest(string UserName);
 
 /// <summary>
+/// The resident's assigned caregivers, in the escalation order they should
+/// now hold.
+/// </summary>
+/// <param name="CaregiverIds">
+/// Every currently assigned caregiver's id, each exactly once, in the new
+/// order. Not a way to add or remove one — see
+/// <see cref="ResidentConfigurationService.ReorderCaregiversAsync"/>.
+/// </param>
+public sealed record ReorderCaregiversRequest(IReadOnlyList<Guid> CaregiverIds);
+
+/// <summary>
 /// Reads and changes a resident's configuration.
 /// </summary>
 /// <remarks>
@@ -203,6 +214,25 @@ public sealed class ResidentConfigurationController : ControllerBase
         return FromOutcome(outcome);
     }
 
+    [HttpPut("caregivers/order")]
+    public async Task<IActionResult> ReorderCaregivers(
+        Guid residentId,
+        [FromBody] ReorderCaregiversRequest request,
+        CancellationToken cancellationToken)
+    {
+        var accountId = await RequireConfigureAsync(residentId, cancellationToken);
+
+        if (accountId is null)
+        {
+            return NotFound();
+        }
+
+        var outcome = await _configuration.ReorderCaregiversAsync(
+            residentId, accountId.Value, request.CaregiverIds, cancellationToken);
+
+        return FromOutcome(outcome);
+    }
+
     private async Task<Guid?> RequireConfigureAsync(Guid residentId, CancellationToken cancellationToken)
     {
         var accountId = _currentAccount.Id;
@@ -260,6 +290,14 @@ public sealed class ResidentConfigurationController : ControllerBase
                 message =
                     $"The emergency contact number cannot be longer than " +
                     $"{ResidentConfigurationService.MaxEmergencyContactPhoneNumberLength} characters."
+            });
+        }
+
+        if (outcome == ConfigurationOutcome.InvalidOrder)
+        {
+            return BadRequest(new
+            {
+                message = "The new order must include exactly the caregivers already assigned, each exactly once."
             });
         }
 

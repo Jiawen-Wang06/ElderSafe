@@ -299,6 +299,14 @@ export const api = {
     });
   },
 
+  /** Rearranges existing assignments (REQ-CFG-08); never adds or removes one. */
+  reorderCaregivers(residentId: string, caregiverIds: string[]): Promise<void> {
+    return request<void>(`/api/residents/${residentId}/caregivers/order`, {
+      method: "PUT",
+      body: JSON.stringify({ caregiverIds }),
+    });
+  },
+
   lookupCaregiver(residentId: string, email: string): Promise<CaregiverLookupResult> {
     const query = new URLSearchParams({ email });
     return request<CaregiverLookupResult>(
