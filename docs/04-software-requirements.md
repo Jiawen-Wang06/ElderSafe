@@ -78,11 +78,13 @@
 
 | ID | Requirement | Acceptance criteria | Comes from | Verified by |
 | --- | --- | --- | --- | --- |
-| REQ-CFG-01 | A resident account shall be able to change its escalation limit and emergency-call setting, and no other account shall. | The resident's own account can change both. A caregiver assigned to that resident can read them and cannot change them. An escalation limit below 1 is refused. | UN-09; RISK-17, RISK-07 | Automated test |
+| REQ-CFG-01 | A resident account shall be able to change its escalation limit and emergency-call setting, and no other account shall. | The resident's own account can change both. A caregiver assigned to that resident can read them and cannot change them. An escalation limit below 1 or above 10 is refused. | UN-09; RISK-17, RISK-07 | Automated test |
 | REQ-CFG-02 | A resident account shall be able to assign a caregiver by the username they registered with. | A known caregiver account is assigned and appears in the escalation order. An unknown username is refused. Assigning the same caregiver twice is refused. | UN-04; RISK-12 | Automated test |
 | REQ-CFG-03 | The system shall refuse any change that would leave a resident with no assigned caregivers. | Removing the last caregiver is refused and the assignment remains. | UN-04; RISK-07, RISK-17 | Automated test |
 | REQ-CFG-04 | Registering an account shall grant access to no resident other than one the account owns. | A newly registered caregiver account can read no resident until assigned. A newly registered resident account owns exactly one resident and can read no other. | UN-06; RISK-14 | Automated test |
 | REQ-CFG-05 | Every configuration change shall be recorded in the audit log and announced to the resident's assigned caregivers. | The audit entry names the acting account. Connected caregivers receive the change. | UN-07; RISK-17 | Automated test |
+| REQ-CFG-06 | A resident account shall be able to set, change, or clear a phone number associated with the emergency-call setting. | The number is stored and returned on read. Blank or whitespace input clears it rather than storing empty text. A number longer than 32 characters is refused. The number is never passed to anything capable of placing a real call; the system's only dispatch implementation remains a logging-only simulation. | UN-09; RISK-09 | Automated test |
+| REQ-CFG-07 | A resident account shall be able to look up a caregiver by their exact registered email before assigning them, seeing the caregiver's display name on a match. | An exact match returns the display name. No match returns a plain not-found result. A string that is a prefix or substring of a registered email, but not the whole thing, does not match. Only a resident configuring that specific resident may use the lookup. | UN-04; RISK-19 | Automated test |
 
 ## 8. Notification delivery
 
@@ -113,3 +115,4 @@
 | 0.8 | 2026-11-06 | REQ-CFG-01 to 05 added. REQ-FALL-04 and REQ-FALL-05 had been showing as verified while only the honouring of those settings was tested and nothing could change them |
 | 0.9 | 2026-11-06 | REQ-FALL-07 and REQ-FALL-08 added. Acknowledgement had been assumed by REQ-FALL-03 without any requirement stating that a caregiver can perform it, and the endpoint was built against that assumption. Reviewing the data behind an alert was not specified at all |
 | 1.0 | 2026-11-06 | REQ-FALL-09 added: a caregiver can see alert counts for a resident over a date range they choose |
+| 1.1 | 2026-11-06 | REQ-CFG-01 amended with an upper bound of 10 on the escalation limit. REQ-CFG-06 and REQ-CFG-07 added: a resident can set an emergency contact number and look up a caregiver by exact email before assigning them |
