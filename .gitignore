@@ -18,6 +18,17 @@ coverage/
 *.coverage
 *.coveragexml
 
+# The dashboard is built into the API's wwwroot by CI. Committing build
+# output means every UI change arrives as a large unreadable diff.
+src/ElderSafe.Api/wwwroot/
+
+# The local SQLite database, created on first run by MigrateAsync and filled
+# by the demo seeder. Developer scratch state, not a fixture: a committed copy
+# would be stale on arrival and would carry whatever has been typed into it.
+*.db
+*.db-shm
+*.db-wal
+
 # Node / React
 node_modules/
 dist/
@@ -50,8 +61,13 @@ htmlcov/
 !.env.example
 *.pfx
 *.pem
-appsettings.Development.json
 local.settings.json
+
+# appsettings.Development.json is deliberately NOT ignored. It holds no
+# secrets, only the switches that make a fresh clone demonstrable: demo data
+# and the simulator. Both stay off in appsettings.json so a deployed instance
+# cannot invent residents or accept fabricated readings (RISK-15). Anything
+# actually secret belongs in user secrets or environment variables.
 
 # Infrastructure
 *.bicepparam.local

@@ -3,6 +3,7 @@ using ElderSafe.Api.Data.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ElderSafe.Api.Controllers;
 
@@ -18,8 +19,22 @@ public sealed record RegisterRequest(
 /// <summary>Credentials offered at sign-in.</summary>
 public sealed record SignInRequest(string UserName, string Password);
 
-/// <summary>Who is signed in.</summary>
-public sealed record CurrentCaregiverResponse(Guid Id, string DisplayName, string UserName);
+/// <summary>A resident this account may see.</summary>
+public sealed record ResidentSummary(Guid Id, string DisplayName);
+
+/// <summary>Who is signed in, and what they can reach.</summary>
+/// <remarks>
+/// The residents are included so the dashboard never has to guess what an
+/// account may open. A resident account sees the one it owns; a caregiver
+/// sees the ones assigned to them. Anything absent from this list is
+/// something the API would refuse anyway.
+/// </remarks>
+public sealed record CurrentAccountResponse(
+    Guid Id,
+    string DisplayName,
+    string UserName,
+    string AccountType,
+    IReadOnlyList<ResidentSummary> Residents);
 
 /// <summary>
 /// Signing caregivers in and out.
@@ -119,18 +134,27 @@ public sealed class AuthController : ControllerBase
 
     [HttpGet("me")]
     [Authorize]
-    public async Task<ActionResult<CurrentCaregiverResponse>> Me()
+    public async Task<ActionResult<CurrentAccountResponse>> Me()
     {
-        var caregiver = await _userManager.GetUserAsync(User);
+        var account = await _userManager.GetUserAsync(User);
 
-        if (caregiver is null)
+        if (account is null)
         {
             return Unauthorized();
         }
 
-        return Ok(new CurrentCaregiverResponse(
-            caregiver.Id,
-            caregiver.DisplayName,
-            caregiver.UserName ?? string.Empty));
+        var residents = await _context.Residents
+            .Where(r => r.AccountId == account.Id
+                || r.Caregivers.Any(rc => rc.CaregiverId == account.Id))
+            .OrderBy(r => r.DisplayName)
+            .Select(r => new ResidentSummary(r.Id, r.DisplayName))
+            .ToListAsync();
+
+        return Ok(new CurrentAccountResponse(
+            account.Id,
+            account.DisplayName,
+            account.UserName ?? string.Empty,
+            account.AccountType.ToString(),
+            residents));
     }
 }

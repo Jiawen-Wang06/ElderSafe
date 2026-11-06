@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using ElderSafe.Api.Alerting;
 using ElderSafe.Api.Configuration;
 using ElderSafe.Api.Data;
@@ -11,7 +12,12 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+// Enums travel as their names, not their numbers. A client sending
+// "Caregiver" is readable and survives the enum being reordered; a client
+// sending 1 is neither.
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 builder.Services.AddSignalR();
 
@@ -165,11 +171,22 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Serves the built dashboard from wwwroot. In development the Vite dev
+// server serves it instead and proxies API calls here, so this path is only
+// exercised by a production build.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<AlertsHub>("/hubs/alerts");
+
+// Client-side routes such as /alerts are not files, so a refresh would 404
+// without this. Known wart: an unmatched /api path also returns index.html
+// rather than a 404.
+app.MapFallbackToFile("index.html");
 
 app.Run();
 
