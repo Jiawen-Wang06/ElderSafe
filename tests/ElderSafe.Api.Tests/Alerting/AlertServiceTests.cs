@@ -3,6 +3,7 @@ using ElderSafe.Api.Data;
 using ElderSafe.Api.Data.Entities;
 using ElderSafe.Api.Detection;
 using ElderSafe.Api.Security;
+using ElderSafe.Api.Simulation;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -62,7 +63,7 @@ public class AlertServiceTests : IDisposable
     public async Task Raises_exactly_one_alert_for_readings_containing_a_fall()
     {
         var resident = AddResident();
-        AddReadings(resident.Id, FallWindow());
+        AddReadings(resident.Id, Scenario(ScenarioLibrary.Fall));
 
         var alert = await _service.EvaluateFallAsync(resident.Id);
 
@@ -104,7 +105,7 @@ public class AlertServiceTests : IDisposable
     public async Task Raises_no_alert_for_ordinary_movement()
     {
         var resident = AddResident();
-        AddReadings(resident.Id, SteadyWindow());
+        AddReadings(resident.Id, Scenario(ScenarioLibrary.OrdinaryMovement));
 
         var alert = await _service.EvaluateFallAsync(resident.Id);
 
@@ -117,7 +118,7 @@ public class AlertServiceTests : IDisposable
     public async Task Does_not_raise_a_second_alert_while_one_is_still_open()
     {
         var resident = AddResident();
-        AddReadings(resident.Id, FallWindow());
+        AddReadings(resident.Id, Scenario(ScenarioLibrary.Fall));
 
         Assert.NotNull(await _service.EvaluateFallAsync(resident.Id));
         Assert.Null(await _service.EvaluateFallAsync(resident.Id));
@@ -269,7 +270,7 @@ public class AlertServiceTests : IDisposable
     public async Task Publishes_a_new_alert_to_connected_caregivers()
     {
         var resident = AddResident();
-        AddReadings(resident.Id, FallWindow());
+        AddReadings(resident.Id, Scenario(ScenarioLibrary.Fall));
 
         await _service.EvaluateFallAsync(resident.Id);
 
@@ -318,7 +319,7 @@ public class AlertServiceTests : IDisposable
     public async Task Stores_the_alert_even_when_it_cannot_be_published()
     {
         var resident = AddResident();
-        AddReadings(resident.Id, FallWindow());
+        AddReadings(resident.Id, Scenario(ScenarioLibrary.Fall));
 
         _notifier.Throws = true;
 
@@ -390,71 +391,36 @@ public class AlertServiceTests : IDisposable
         return alert;
     }
 
-    private void AddReadings(Guid residentId, IEnumerable<(double Seconds, double MagnitudeG)> shape)
+    private void AddReadings(Guid residentId, IReadOnlyList<IncomingReading> readings)
     {
-        var now = _clock.GetUtcNow();
-
-        foreach (var (seconds, magnitude) in shape)
+        foreach (var reading in readings)
         {
             _context.Readings.Add(new Reading
             {
                 Id = Guid.NewGuid(),
                 ResidentId = residentId,
-                At = now.AddSeconds(seconds - 3.9),
-                AccelerationX = 0,
-                AccelerationY = 0,
-                AccelerationZ = magnitude
+                At = reading.At,
+                AccelerationX = reading.AccelerationX,
+                AccelerationY = reading.AccelerationY,
+                AccelerationZ = reading.AccelerationZ
             });
         }
 
         _context.SaveChanges();
     }
 
-    private static List<(double Seconds, double MagnitudeG)> FallWindow()
+    private IReadOnlyList<IncomingReading> Scenario(string name)
     {
-        var points = new List<(double, double)>();
-        var t = 0.0;
+        ScenarioLibrary.TryBuild(name, _clock.GetUtcNow(), out var readings);
 
-        void Hold(double seconds, double magnitude)
-        {
-            var count = (int)Math.Round(seconds / 0.05);
-
-            for (var i = 0; i < count; i++)
-            {
-                points.Add((t, magnitude));
-                t += 0.05;
-            }
-        }
-
-        Hold(0.5, 1.0);
-        Hold(0.3, 0.4);
-        points.Add((t, 3.0));
-        t += 0.05;
-        Hold(2.6, 1.0);
-
-        return points;
+        return readings;
     }
 
     private List<IncomingReading> IncomingFallWindow()
     {
-        var now = _clock.GetUtcNow();
+        ScenarioLibrary.TryBuild(ScenarioLibrary.Fall, _clock.GetUtcNow(), out var readings);
 
-        return FallWindow()
-            .Select(p => new IncomingReading(
-                now.AddSeconds(p.Seconds - 3.9), 0, 0, p.MagnitudeG, null, null, null))
-            .ToList();
-    }
-
-    private static List<(double Seconds, double MagnitudeG)> SteadyWindow()
-    {
-        var points = new List<(double, double)>();
-
-        for (var i = 0; i < 78; i++)
-        {
-            points.Add((i * 0.05, 1.3));
-        }
-
-        return points;
+        return readings.ToList();
     }
 
     private sealed class RecordingNotifier : IAlertNotifier
