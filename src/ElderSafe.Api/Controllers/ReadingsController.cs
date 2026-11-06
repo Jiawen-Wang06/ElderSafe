@@ -1,4 +1,7 @@
+using System.Security.Claims;
 using ElderSafe.Api.Alerting;
+using ElderSafe.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ElderSafe.Api.Controllers;
@@ -7,15 +10,17 @@ namespace ElderSafe.Api.Controllers;
 public sealed record IngestionResponse(int Accepted, bool AlertRaised, Guid? AlertId);
 
 /// <summary>
-/// Accepts readings from a resident's wearable.
+/// Accepts readings from a paired wearable.
 /// </summary>
 /// <remarks>
-/// <b>Unauthenticated in this version.</b> REQ-SEC-01 and REQ-SEC-03 are not
-/// met until the authentication work lands, and the traceability matrix says
-/// so rather than implying otherwise.
+/// The route carries no resident. The resident is read from the device's
+/// pairing, so a device cannot post readings for anyone else even if it tries
+/// — the opportunity does not exist in the API's shape rather than being
+/// checked for and rejected (REQ-SEC-04, RISK-15).
 /// </remarks>
 [ApiController]
-[Route("api/residents/{residentId:guid}/readings")]
+[Route("api/readings")]
+[Authorize(AuthenticationSchemes = DeviceAuthenticationHandler.SchemeName)]
 public sealed class ReadingsController : ControllerBase
 {
     private readonly ReadingIngestionService _ingestion;
@@ -27,7 +32,6 @@ public sealed class ReadingsController : ControllerBase
 
     [HttpPost]
     public async Task<ActionResult<IngestionResponse>> Post(
-        Guid residentId,
         [FromBody] IReadOnlyList<IncomingReading> readings,
         CancellationToken cancellationToken)
     {
@@ -36,11 +40,20 @@ public sealed class ReadingsController : ControllerBase
             return BadRequest("At least one reading is required.");
         }
 
+        var residentClaim = User.FindFirstValue(DeviceAuthenticationHandler.ResidentIdClaimType);
+
+        if (!Guid.TryParse(residentClaim, out var residentId))
+        {
+            return Unauthorized();
+        }
+
         var outcome = await _ingestion.IngestAsync(residentId, readings, cancellationToken);
 
         if (!outcome.ResidentFound)
         {
-            return NotFound();
+            // The device is paired to a resident that no longer exists. Not
+            // the caller's doing, and not something to leak back to it.
+            return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
         return Ok(new IngestionResponse(
