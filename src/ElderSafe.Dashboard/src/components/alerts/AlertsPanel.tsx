@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Loader2, Siren } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { api, ApiError } from "@/lib/api";
-import type { AlertTrace, AlertView } from "@/lib/api";
+import type { AlertTrace, AlertView, AssignedCaregiverView } from "@/lib/api";
 import { AccelerationTrace } from "@/components/AccelerationTrace";
 import { describeWait, isOpen, mergeAlert, mergeAlerts, secondsWaiting } from "@/lib/alertList";
 import { createAlertsConnection } from "@/lib/signalr";
@@ -50,6 +50,9 @@ export function AlertsPanel() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [traces, setTraces] = useState<Record<string, AlertTrace>>({});
   const [traceError, setTraceError] = useState<string | null>(null);
+  const [caregiversByResident, setCaregiversByResident] = useState<
+    Record<string, AssignedCaregiverView[]>
+  >({});
 
   // Memoised on the account rather than on a joined list of identifiers. The
   // account object is replaced only when "who am I" is re-asked, so this is
@@ -66,11 +69,17 @@ export function AlertsPanel() {
     }
 
     try {
-      const batches = await Promise.all(
-        residents.map((resident) => api.alerts(resident.id, true)),
-      );
+      const [alertBatches, caregiverBatches] = await Promise.all([
+        Promise.all(residents.map((resident) => api.alerts(resident.id, true))),
+        Promise.all(residents.map((resident) => api.caregivers(resident.id))),
+      ]);
 
-      setAlerts(mergeAlerts(...batches));
+      setAlerts(mergeAlerts(...alertBatches));
+      setCaregiversByResident(
+        Object.fromEntries(
+          residents.map((resident, index) => [resident.id, caregiverBatches[index]]),
+        ),
+      );
       setLoadError(null);
     } catch {
       // Deliberately not cleared: showing a stale list under an error notice
@@ -160,6 +169,18 @@ export function AlertsPanel() {
       void hub.stop();
     };
   }, [residents, load]);
+
+  // The caregiver currently at this alert's escalation level, by their
+  // registered email. Every subscribed caregiver is actually notified
+  // regardless of level (the server broadcasts to the resident's whole
+  // group, not to one caregiver at a time), so this names whose turn it
+  // is in the chain, not who received a push and who didn't. Falls back
+  // to a bare position number if that caregiver was since removed.
+  function caregiverAtLevel(alert: AlertView): string {
+    const caregiver = caregiversByResident[alert.residentId]?.[alert.escalationLevel];
+
+    return caregiver?.userName ?? `Caregiver ${alert.escalationLevel + 1}`;
+  }
 
   async function acknowledge(alert: AlertView) {
     setAcknowledging(alert.id);
@@ -380,7 +401,7 @@ export function AlertsPanel() {
                           Emergency call
                         </span>
                       ) : (
-                        `Caregiver ${alert.escalationLevel + 1}`
+                        caregiverAtLevel(alert)
                       )}
                     </TableCell>
 
