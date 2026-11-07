@@ -119,4 +119,4 @@ Deliberate omissions, each with a reason in the architecture document:
 
 ## License
 
-[MIT](LICENSE)
+All rights reserved. See [LICENSE](LICENSE) — this repository is public for review, not for reuse.
