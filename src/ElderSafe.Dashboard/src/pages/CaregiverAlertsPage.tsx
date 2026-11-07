@@ -1,3 +1,4 @@
+import { Bell, ChartColumn } from "lucide-react";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import { AlertsPanel } from "@/components/alerts/AlertsPanel";
 import { SummaryPanel } from "@/components/alerts/SummaryPanel";
@@ -13,9 +14,15 @@ import { SummaryPanel } from "@/components/alerts/SummaryPanel";
 export function CaregiverAlertsPage() {
   return (
     <Tabs defaultValue="alerts">
-      <TabsList>
-        <TabsTab value="alerts">Alerts</TabsTab>
-        <TabsTab value="summary">Summary</TabsTab>
+      <TabsList className="h-10 w-fit gap-1 rounded-full bg-secondary/70 p-1">
+        <TabsTab value="alerts" className="gap-1.5 rounded-full px-4 data-active:shadow-sm">
+          <Bell className="size-4" aria-hidden="true" />
+          Alerts
+        </TabsTab>
+        <TabsTab value="summary" className="gap-1.5 rounded-full px-4 data-active:shadow-sm">
+          <ChartColumn className="size-4" aria-hidden="true" />
+          Summary
+        </TabsTab>
       </TabsList>
 
       <TabsPanel value="alerts" keepMounted>

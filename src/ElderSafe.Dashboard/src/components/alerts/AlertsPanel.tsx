@@ -1,5 +1,13 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Loader2, Siren } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  FlaskConical,
+  Loader2,
+  Siren,
+} from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { api, ApiError } from "@/lib/api";
 import type { AlertTrace, AlertView, AssignedCaregiverView } from "@/lib/api";
@@ -275,9 +283,26 @@ export function AlertsPanel() {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <CardHeader
+          style={{ marginTop: "calc(var(--card-spacing) * -1)" }}
+          className={`flex flex-row items-start justify-between gap-4 rounded-t-xl border-b pt-(--card-spacing) pb-(--card-spacing) ${
+            open.length > 0 || connection === "disconnected"
+              ? "border-accent-foreground/10 bg-accent"
+              : "border-border bg-secondary/40"
+          }`}
+        >
           <div className="flex flex-col gap-1.5">
-            <CardTitle>Alerts</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle
+                className={`size-4 ${
+                  open.length > 0 || connection === "disconnected"
+                    ? "text-accent-foreground"
+                    : "text-muted-foreground"
+                }`}
+                aria-hidden="true"
+              />
+              Alerts
+            </CardTitle>
             <CardDescription>
               {open.length === 0
                 ? `No open alerts across ${residents.length} resident${residents.length === 1 ? "" : "s"}.`
@@ -456,8 +481,14 @@ export function AlertsPanel() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Simulate</CardTitle>
+        <CardHeader
+          style={{ marginTop: "calc(var(--card-spacing) * -1)" }}
+          className="rounded-t-xl border-b border-primary/15 bg-primary/8 pt-(--card-spacing) pb-(--card-spacing)"
+        >
+          <CardTitle className="flex items-center gap-2">
+            <FlaskConical className="size-4 text-primary" aria-hidden="true" />
+            Simulate
+          </CardTitle>
           <CardDescription>
             Raises a fall from recorded sample readings, so detection and
             escalation can be watched end to end.
