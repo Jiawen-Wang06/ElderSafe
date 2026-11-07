@@ -100,7 +100,7 @@ public sealed class AlertSummaryService
             .OrderByDescending(a => a.RaisedAt)
             .Select(a => new SummaryAlertEntry(
                 a.Id,
-                a.Kind,
+                a.Kind.ToString(),
                 a.RaisedAt,
                 a.AcknowledgedAt,
                 a.AcknowledgedByCaregiver == null ? null : a.AcknowledgedByCaregiver.DisplayName,

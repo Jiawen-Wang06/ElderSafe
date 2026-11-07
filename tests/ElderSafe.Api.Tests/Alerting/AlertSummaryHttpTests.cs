@@ -174,7 +174,7 @@ public class AlertSummaryHttpTests
 
         Assert.NotNull(summary);
         var entry = Assert.Single(summary!.Alerts);
-        Assert.Equal("Fall", entry.Kind.ToString());
+        Assert.Equal("Fall", entry.Kind);
         Assert.Null(entry.AcknowledgedAt);
         Assert.Null(entry.AcknowledgedByDisplayName);
         Assert.False(entry.EmergencyCalled);

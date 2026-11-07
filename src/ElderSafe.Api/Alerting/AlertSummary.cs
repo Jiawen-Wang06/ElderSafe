@@ -46,7 +46,7 @@ public sealed record SummaryBucket(
 /// </remarks>
 public sealed record SummaryAlertEntry(
     Guid Id,
-    AlertKind Kind,
+    string Kind,
     DateTimeOffset RaisedAt,
     DateTimeOffset? AcknowledgedAt,
     string? AcknowledgedByDisplayName,
