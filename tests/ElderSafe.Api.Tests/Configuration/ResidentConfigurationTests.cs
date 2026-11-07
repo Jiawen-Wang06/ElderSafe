@@ -336,6 +336,47 @@ public class ResidentConfigurationTests
         Assert.Single(remaining!);
     }
 
+    [Fact(DisplayName = "REQ-CFG-08 removing a caregiver closes the gap left in the others' order")]
+    [Trait("Requirement", "REQ-CFG-08")]
+    public async Task Removing_a_caregiver_closes_the_gap_left_in_the_others_order()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory, ResidentAccount);
+
+        var register = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            new
+            {
+                UserName = "third.caregiver@example.invalid",
+                Password = ElderSafeWebAppFactory.DemoPassword,
+                DisplayName = "Third Caregiver",
+                AccountType = AccountType.Caregiver
+            });
+
+        Assert.Equal(HttpStatusCode.NoContent, register.StatusCode);
+
+        var assign = await client.PostAsJsonAsync(
+            $"/api/residents/{ResidentA}/caregivers",
+            new { UserName = "third.caregiver@example.invalid" });
+
+        Assert.Equal(HttpStatusCode.NoContent, assign.StatusCode);
+
+        var remove = await client.DeleteAsync(
+            $"/api/residents/{ResidentA}/caregivers/{SecondCaregiverId}");
+
+        Assert.Equal(HttpStatusCode.NoContent, remove.StatusCode);
+
+        var caregivers = await client.GetFromJsonAsync<List<AssignedCaregiverView>>(
+            $"/api/residents/{ResidentA}/caregivers");
+
+        Assert.NotNull(caregivers);
+        Assert.Equal(2, caregivers!.Count);
+        Assert.Equal(FirstCaregiverId, caregivers[0].CaregiverId);
+        Assert.Equal(0, caregivers[0].Order);
+        Assert.Equal("third.caregiver@example.invalid", caregivers[1].UserName);
+        Assert.Equal(1, caregivers[1].Order);
+    }
+
     [Fact(DisplayName = "REQ-CFG-08 a resident can reorder its assigned caregivers")]
     [Trait("Requirement", "REQ-CFG-08")]
     public async Task A_resident_can_reorder_its_assigned_caregivers()

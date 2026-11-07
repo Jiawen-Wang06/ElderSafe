@@ -308,27 +308,48 @@ public sealed class ResidentConfigurationService
         Guid caregiverId,
         CancellationToken cancellationToken = default)
     {
-        var assignment = await _context.ResidentCaregivers
-            .FirstOrDefaultAsync(
-                rc => rc.ResidentId == residentId && rc.CaregiverId == caregiverId, cancellationToken);
+        var assignments = await _context.ResidentCaregivers
+            .Where(rc => rc.ResidentId == residentId)
+            .OrderBy(rc => rc.Order)
+            .ToListAsync(cancellationToken);
+
+        var assignment = assignments.FirstOrDefault(rc => rc.CaregiverId == caregiverId);
 
         if (assignment is null)
         {
             return ConfigurationOutcome.CaregiverNotFound;
         }
 
-        var remaining = await _context.ResidentCaregivers
-            .CountAsync(rc => rc.ResidentId == residentId, cancellationToken);
-
         // A resident with no caregivers has no safety net at all: a fall
         // raises an alert that reaches nobody. Made impossible rather than
         // discouraged (RISK-07).
-        if (remaining <= 1)
+        if (assignments.Count <= 1)
         {
             return ConfigurationOutcome.WouldLeaveNoCaregivers;
         }
 
         _context.ResidentCaregivers.Remove(assignment);
+
+        var remaining = assignments.Where(rc => rc.CaregiverId != caregiverId).ToList();
+
+        // Removing one caregiver leaves a gap in the others' Order values
+        // (REQ-CFG-08's own reorder closes the same gap, but nothing should
+        // depend on a resident reordering just to repair what a removal
+        // left behind). Closed the same way reordering closes one: every
+        // remaining row to a negative, guaranteed-distinct position first,
+        // so the unique (ResidentId, Order) index never sees two rows
+        // share a value while they are renumbered down to 0..n-1.
+        foreach (var rc in remaining)
+        {
+            rc.Order = -(rc.Order + 1);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        for (var index = 0; index < remaining.Count; index++)
+        {
+            remaining[index].Order = index;
+        }
 
         await RecordAndAnnounceAsync(
             residentId, actorAccountId, "RemovedCaregiver", caregiverId.ToString(), cancellationToken);
