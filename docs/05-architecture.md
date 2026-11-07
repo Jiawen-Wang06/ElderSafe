@@ -34,7 +34,7 @@ A reviewer should be able to clone the repository and have it running with two c
 | Trained ML model | **Deferred** | Needs a dataset and training time. The detector sits behind an interface so a model can replace the rules later |
 | FHIR export | **Deferred** | Needs a HAPI FHIR server running alongside |
 | Caregiver authentication and per-resident authorization | **Built**, ASP.NET Core Identity with cookies | The data is personal health information; a stub would leave the hazard uncontrolled. See [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
-| Azure deployment | **Deferred** | Decided in [ADR-004](adr/ADR-004-single-web-app.md) — a single Web App, `az webapp up`, no Bicep on day one — but not yet performed |
+| Azure deployment | **Built**, single Web App | Deployed manually (portal + Kudu zip deploy), free tier, no Bicep on day one. See [ADR-004](adr/ADR-004-single-web-app.md) |
 
 Deferred items stay in the requirements register with no passing test, so `traceability.md` shows the gaps honestly rather than hiding them.
 
@@ -236,3 +236,4 @@ Each of these is a deliberate trade against the two-day budget, and each is reco
 | --- | --- | --- |
 | 0.1 | 2026-11-05 | First draft, scoped to a 1 to 2 day build |
 | 0.2 | 2026-11-06 | Scope table corrected: wandering detection, the shift summary and Azure deployment were marked **Built** since the first draft but were never implemented or performed. Marked **Deferred**, matching [04-software-requirements.md](04-software-requirements.md) |
+| 0.3 | 2026-11-06 | Azure deployment marked **Built**: deployed manually to a single free-tier Web App |
