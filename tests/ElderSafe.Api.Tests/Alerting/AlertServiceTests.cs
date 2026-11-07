@@ -127,6 +127,7 @@ public class AlertServiceTests : IDisposable
 
     [Fact(DisplayName = "REQ-SEC-02 records who acknowledged an alert and when")]
     [Trait("Requirement", "REQ-SEC-02")]
+    [Trait("Requirement", "REQ-FALL-07")]
     public async Task Records_who_acknowledged_an_alert_and_when()
     {
         var resident = AddResident();
@@ -148,6 +149,7 @@ public class AlertServiceTests : IDisposable
 
     [Fact(DisplayName = "REQ-FALL-03 does not escalate an acknowledged alert")]
     [Trait("Requirement", "REQ-FALL-03")]
+    [Trait("Requirement", "REQ-FALL-07")]
     public async Task Does_not_escalate_an_acknowledged_alert()
     {
         var resident = AddResident();
@@ -286,6 +288,7 @@ public class AlertServiceTests : IDisposable
 
     [Fact(DisplayName = "REQ-SEC-01 refuses to acknowledge an alert for a resident the caregiver is not assigned to")]
     [Trait("Requirement", "REQ-SEC-01")]
+    [Trait("Requirement", "REQ-FALL-07")]
     public async Task Refuses_to_acknowledge_an_alert_for_a_resident_the_caregiver_is_not_assigned_to()
     {
         var resident = AddResident();
@@ -298,6 +301,29 @@ public class AlertServiceTests : IDisposable
         _context.ChangeTracker.Clear();
 
         Assert.Null(_context.Alerts.Single(a => a.Id == alert.Id).AcknowledgedAt);
+    }
+
+    [Fact(DisplayName = "REQ-FALL-07 a second acknowledgement does not overwrite the first")]
+    [Trait("Requirement", "REQ-FALL-07")]
+    public async Task A_second_acknowledgement_does_not_overwrite_the_first()
+    {
+        var resident = AddResident();
+        var firstCaregiver = AddCaregiver(resident.Id, order: 0);
+        var secondCaregiver = AddCaregiver(resident.Id, order: 1);
+        var alert = AddOpenAlert(resident.Id);
+
+        Assert.True(await _service.AcknowledgeAsync(alert.Id, firstCaregiver.Id));
+
+        _clock.Advance(TimeSpan.FromSeconds(30));
+
+        Assert.True(await _service.AcknowledgeAsync(alert.Id, secondCaregiver.Id));
+
+        _context.ChangeTracker.Clear();
+
+        var stored = _context.Alerts.Single();
+
+        Assert.Equal(Origin, stored.AcknowledgedAt);
+        Assert.Equal(firstCaregiver.Id, stored.AcknowledgedByCaregiverId);
     }
 
     [Fact(DisplayName = "REQ-FALL-02 publishes a new alert to connected caregivers")]
