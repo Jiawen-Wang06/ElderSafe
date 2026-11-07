@@ -124,7 +124,14 @@ public static class AlertSummaryBuilder
                 // not just where it ended up.
                 var escalated = ofKind.Count(a => a.EscalationLevel > 0);
 
-                return new AlertKindCount(kind.ToString(), ofKind.Count, respondedInTime, escalated);
+                // DispatchedAt is set once, the moment an emergency call is
+                // placed, and never cleared afterwards (REQ-FALL-06), so
+                // counting it here needs no separate "did this reach
+                // emergency call" state of its own.
+                var emergencyCalled = ofKind.Count(a => a.DispatchedAt is not null);
+
+                return new AlertKindCount(
+                    kind.ToString(), ofKind.Count, respondedInTime, escalated, emergencyCalled);
             })
             .ToList();
 

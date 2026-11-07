@@ -71,6 +71,13 @@ export function AlertSummaryChart({ summary }: { summary: AlertSummary }) {
       ? null
       : series.find((s) => s.kind === active.kind)?.values[active.bucketIndex] ?? null;
 
+  const activeEmergencyCalled =
+    active === null
+      ? null
+      : series.find((s) => s.kind === active.kind)?.emergencyCalled[active.bucketIndex] ?? null;
+
+  const hasEmergencyCalled = series.some((s) => s.emergencyCalled.some((count) => count > 0));
+
   return (
     <div className="viz-root flex flex-col gap-3">
       <style>{`
@@ -78,6 +85,7 @@ export function AlertSummaryChart({ summary }: { summary: AlertSummary }) {
           --viz-fall: #2a78d6;
           --viz-wander: #eb6834;
           --viz-nodata: #1baf7a;
+          --viz-emergency: #c22525;
           --viz-grid: #e1e0d9;
           --viz-axis: #c3c2b7;
           --viz-muted: #898781;
@@ -87,6 +95,7 @@ export function AlertSummaryChart({ summary }: { summary: AlertSummary }) {
           --viz-fall: #3987e5;
           --viz-wander: #d95926;
           --viz-nodata: #199e70;
+          --viz-emergency: #e14545;
           --viz-grid: #2c2c2a;
           --viz-axis: #383835;
           --viz-muted: #898781;
@@ -94,7 +103,7 @@ export function AlertSummaryChart({ summary }: { summary: AlertSummary }) {
         }
       `}</style>
 
-      {series.length > 1 && (
+      {(series.length > 1 || hasEmergencyCalled) && (
         <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
           {series.map((s) => (
             <span key={s.kind} className="inline-flex items-center gap-1.5">
@@ -106,6 +115,16 @@ export function AlertSummaryChart({ summary }: { summary: AlertSummary }) {
               {s.kind}
             </span>
           ))}
+          {hasEmergencyCalled && (
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="inline-block size-2.5 rounded-full"
+                style={{ backgroundColor: "var(--viz-emergency)" }}
+              />
+              Reached emergency call
+            </span>
+          )}
         </div>
       )}
 
@@ -114,7 +133,14 @@ export function AlertSummaryChart({ summary }: { summary: AlertSummary }) {
         className="w-full"
         role="img"
         aria-label={`Alert counts by period. ${series
-          .map((s) => `${s.kind}: ${s.values.reduce((a, b) => a + b, 0)} total`)
+          .map((s) => {
+            const total = s.values.reduce((a, b) => a + b, 0);
+            const emergencyCalled = s.emergencyCalled.reduce((a, b) => a + b, 0);
+
+            return emergencyCalled > 0
+              ? `${s.kind}: ${total} total, ${emergencyCalled} reached emergency call`
+              : `${s.kind}: ${total} total`;
+          })
           .join(". ")}`}
       >
         {ticks.map((tick) => (
@@ -166,30 +192,56 @@ export function AlertSummaryChart({ summary }: { summary: AlertSummary }) {
           s.values.map((value, bucketIndex) => {
             const barHeight = plot.bottom - y(value);
             const isActive = active?.bucketIndex === bucketIndex && active.kind === s.kind;
+            const emergencyCalled = s.emergencyCalled[bucketIndex] ?? 0;
 
             if (value === 0) {
               return null;
             }
 
+            // The emergency-called portion of a bar is drawn as a flat-top
+            // red cap stacked on the bar's own top, sized to its share of
+            // the bar's height — never a separate bar, since it is a subset
+            // of this bar's total rather than a count of its own.
+            const emergencyCapHeight =
+              emergencyCalled > 0 ? barHeight * (emergencyCalled / value) : 0;
+
+            const label =
+              emergencyCalled > 0
+                ? `${s.kind}, ${bucketLabels[bucketIndex]}: ${value}, ${emergencyCalled} reached emergency call`
+                : `${s.kind}, ${bucketLabels[bucketIndex]}: ${value}`;
+
             return (
-              <rect
-                key={`${s.kind}-${bucketIndex}`}
-                x={barX(bucketIndex, series.indexOf(s))}
-                y={y(value)}
-                width={barWidth}
-                height={barHeight}
-                rx={4}
-                fill={kindColor[s.kind] ?? "var(--viz-muted)"}
-                opacity={isActive ? 1 : 0.9}
-                tabIndex={0}
-                role="button"
-                aria-label={`${s.kind}, ${bucketLabels[bucketIndex]}: ${value}`}
-                onPointerEnter={() => setActive({ bucketIndex, kind: s.kind })}
-                onPointerLeave={() => setActive(null)}
-                onFocus={() => setActive({ bucketIndex, kind: s.kind })}
-                onBlur={() => setActive(null)}
-                className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
+              <g key={`${s.kind}-${bucketIndex}`}>
+                <rect
+                  x={barX(bucketIndex, series.indexOf(s))}
+                  y={y(value)}
+                  width={barWidth}
+                  height={barHeight}
+                  rx={4}
+                  fill={kindColor[s.kind] ?? "var(--viz-muted)"}
+                  opacity={isActive ? 1 : 0.9}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={label}
+                  onPointerEnter={() => setActive({ bucketIndex, kind: s.kind })}
+                  onPointerLeave={() => setActive(null)}
+                  onFocus={() => setActive({ bucketIndex, kind: s.kind })}
+                  onBlur={() => setActive(null)}
+                  className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                {emergencyCapHeight > 0 && (
+                  <rect
+                    aria-hidden
+                    x={barX(bucketIndex, series.indexOf(s))}
+                    y={y(value)}
+                    width={barWidth}
+                    height={emergencyCapHeight}
+                    fill="var(--viz-emergency)"
+                    opacity={isActive ? 1 : 0.9}
+                    className="pointer-events-none"
+                  />
+                )}
+              </g>
             );
           }),
         )}
@@ -202,6 +254,16 @@ export function AlertSummaryChart({ summary }: { summary: AlertSummary }) {
             <span className="text-muted-foreground">
               {" "}
               {active.kind} alerts, {bucketLabels[active.bucketIndex]}
+              {activeEmergencyCalled !== null && activeEmergencyCalled > 0 && (
+                <>
+                  {" "}
+                  (
+                  <span className="font-medium text-destructive">
+                    {activeEmergencyCalled} reached emergency call
+                  </span>
+                  )
+                </>
+              )}
             </span>
           </>
         ) : (
@@ -226,6 +288,9 @@ export function AlertSummaryChart({ summary }: { summary: AlertSummary }) {
                     {s.kind}
                   </th>
                 ))}
+                {hasEmergencyCalled && (
+                  <th className="py-1 pr-4 font-medium">Reached emergency call</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -237,6 +302,14 @@ export function AlertSummaryChart({ summary }: { summary: AlertSummary }) {
                       {s.values[bucketIndex]}
                     </td>
                   ))}
+                  {hasEmergencyCalled && (
+                    <td className="py-0.5 pr-4">
+                      {series.reduce(
+                        (sum, s) => sum + (s.emergencyCalled[bucketIndex] ?? 0),
+                        0,
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

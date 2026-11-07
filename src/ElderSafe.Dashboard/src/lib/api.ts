@@ -60,12 +60,13 @@ export interface AlertTrace {
   samples: TraceSample[];
 }
 
-/** Counts for one alert kind within one bucket (REQ-FALL-09). */
+/** Counts for one alert kind within one bucket (REQ-FALL-09, REQ-FALL-10). */
 export interface AlertKindCount {
   kind: string;
   total: number;
   respondedInTime: number;
   escalated: number;
+  emergencyCalled: number;
 }
 
 /** One period's counts in an alert summary. */
@@ -75,7 +76,24 @@ export interface SummaryBucket {
   counts: AlertKindCount[];
 }
 
-/** Alert counts for a resident over a date range (REQ-FALL-09). */
+/**
+ * One alert in a summary's range, for the list behind the bucket counts
+ * (REQ-FALL-10).
+ *
+ * `acknowledgedByDisplayName` is null until someone has — there is no "no
+ * one" placeholder, since a reader should not have to tell "not yet" apart
+ * from "by someone unnamed."
+ */
+export interface SummaryAlertEntry {
+  id: string;
+  kind: string;
+  raisedAt: string;
+  acknowledgedAt: string | null;
+  acknowledgedByDisplayName: string | null;
+  emergencyCalled: boolean;
+}
+
+/** Alert counts for a resident over a date range (REQ-FALL-09, REQ-FALL-10). */
 export interface AlertSummary {
   residentId: string;
   residentDisplayName: string;
@@ -83,6 +101,7 @@ export interface AlertSummary {
   to: string;
   granularity: "day" | "week" | "month";
   buckets: SummaryBucket[];
+  alerts: SummaryAlertEntry[];
 }
 
 /** A resident's alerting configuration, as shown and edited (REQ-CFG-01, REQ-CFG-06). */

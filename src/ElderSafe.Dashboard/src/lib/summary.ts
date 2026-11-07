@@ -32,6 +32,11 @@ export function presetRange(preset: SummaryPreset, now: Date): { from: Date; to:
 export interface ChartSeries {
   kind: string;
   values: number[];
+  /**
+   * How many of each bucket's `values` entry reached an emergency call
+   * (REQ-FALL-10) — a subset of that bucket's total, never larger than it.
+   */
+  emergencyCalled: number[];
 }
 
 /** The bars, their labels, and the kinds actually worth charting. */
@@ -83,6 +88,9 @@ export function chartDataFor(summary: AlertSummary): ChartData {
     values: summary.buckets.map(
       (bucket) => bucket.counts.find((c) => c.kind === kind)?.total ?? 0,
     ),
+    emergencyCalled: summary.buckets.map(
+      (bucket) => bucket.counts.find((c) => c.kind === kind)?.emergencyCalled ?? 0,
+    ),
   }));
 
   return { bucketLabels, series };
@@ -93,6 +101,7 @@ export interface SummaryTotals {
   total: number;
   respondedInTime: number;
   escalated: number;
+  emergencyCalled: number;
 }
 
 export function totalsFor(summary: AlertSummary): SummaryTotals {
@@ -103,8 +112,9 @@ export function totalsFor(summary: AlertSummary): SummaryTotals {
         total: acc.total + count.total,
         respondedInTime: acc.respondedInTime + count.respondedInTime,
         escalated: acc.escalated + count.escalated,
+        emergencyCalled: acc.emergencyCalled + count.emergencyCalled,
       }),
-      { total: 0, respondedInTime: 0, escalated: 0 },
+      { total: 0, respondedInTime: 0, escalated: 0, emergencyCalled: 0 },
     );
 }
 

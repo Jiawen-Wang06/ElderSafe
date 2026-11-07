@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { api } from "@/lib/api";
-import type { AlertSummary } from "@/lib/api";
+import type { AlertSummary, SummaryAlertEntry } from "@/lib/api";
 import { presetRange, totalsFor } from "@/lib/summary";
 import type { SummaryPreset } from "@/lib/summary";
 import { AlertSummaryChart } from "@/components/AlertSummaryChart";
@@ -184,7 +184,7 @@ export function SummaryPanel() {
           </p>
         ) : summary !== null && totals !== null ? (
           <>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-lg border border-border p-3">
                 <p className="text-xs text-muted-foreground">Alerts raised</p>
                 <p className="text-2xl font-semibold tabular-nums">{totals.total}</p>
@@ -197,12 +197,63 @@ export function SummaryPanel() {
                 <p className="text-xs text-muted-foreground">Escalated</p>
                 <p className="text-2xl font-semibold tabular-nums">{totals.escalated}</p>
               </div>
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground">Reached emergency call</p>
+                <p className="text-2xl font-semibold tabular-nums">{totals.emergencyCalled}</p>
+              </div>
             </div>
 
             <AlertSummaryChart summary={summary} />
+
+            <AlertEntryList alerts={summary.alerts} />
           </>
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * The individual alerts behind the bucket counts, most recent first
+ * (REQ-FALL-10), so a caregiver can see not just how many were missed but
+ * who answered each one that was.
+ */
+function AlertEntryList({ alerts }: { alerts: SummaryAlertEntry[] }) {
+  if (alerts.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">No alerts were raised in this range.</p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-medium">Alerts in this range</p>
+
+      <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
+        {alerts.map((alert) => (
+          <li key={alert.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+            <div className="flex flex-col">
+              <span>{alert.kind}</span>
+              <span className="text-xs text-muted-foreground">
+                {new Date(alert.raisedAt).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-right">
+              {alert.emergencyCalled && (
+                <span className="text-xs font-medium text-destructive">Emergency call</span>
+              )}
+              {alert.acknowledgedByDisplayName !== null ? (
+                <span className="text-xs text-muted-foreground">
+                  Acknowledged by {alert.acknowledgedByDisplayName}
+                </span>
+              ) : (
+                <span className="text-xs text-destructive">Not yet acknowledged</span>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

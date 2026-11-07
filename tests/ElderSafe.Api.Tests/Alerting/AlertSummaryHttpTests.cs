@@ -150,5 +150,64 @@ public class AlertSummaryHttpTests
         Assert.All(
             summary.Buckets.SelectMany(b => b.Counts),
             count => Assert.Equal(0, count.Total));
+        Assert.Empty(summary.Alerts);
+    }
+
+    [Fact(DisplayName = "REQ-FALL-10 a simulated fall appears in the summary's alert list, unacknowledged")]
+    [Trait("Requirement", "REQ-FALL-10")]
+    public async Task A_simulated_fall_appears_in_the_summary_alert_list_unacknowledged()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory);
+
+        var simulated = await client.PostAsync(
+            $"/api/residents/{ResidentA}/simulate/{ScenarioLibrary.Fall}", null);
+        Assert.Equal(HttpStatusCode.OK, simulated.StatusCode);
+
+        var from = DateTimeOffset.UtcNow.AddDays(-1);
+        var to = DateTimeOffset.UtcNow.AddDays(1);
+
+        var response = await client.GetAsync(
+            $"/api/residents/{ResidentA}/alerts/summary?{RangeQuery(from, to)}");
+
+        var summary = await response.Content.ReadFromJsonAsync<AlertSummary>();
+
+        Assert.NotNull(summary);
+        var entry = Assert.Single(summary!.Alerts);
+        Assert.Equal("Fall", entry.Kind);
+        Assert.Null(entry.AcknowledgedAt);
+        Assert.Null(entry.AcknowledgedByDisplayName);
+        Assert.False(entry.EmergencyCalled);
+    }
+
+    [Fact(DisplayName = "REQ-FALL-10 once acknowledged, the summary's alert entry names who acknowledged it")]
+    [Trait("Requirement", "REQ-FALL-10")]
+    public async Task Once_acknowledged_the_summary_alert_entry_names_who_acknowledged_it()
+    {
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory);
+
+        var simulated = await client.PostAsync(
+            $"/api/residents/{ResidentA}/simulate/{ScenarioLibrary.Fall}", null);
+        Assert.Equal(HttpStatusCode.OK, simulated.StatusCode);
+
+        var from = DateTimeOffset.UtcNow.AddDays(-1);
+        var to = DateTimeOffset.UtcNow.AddDays(1);
+
+        var beforeAck = await client.GetAsync(
+            $"/api/residents/{ResidentA}/alerts/summary?{RangeQuery(from, to)}");
+        var beforeSummary = await beforeAck.Content.ReadFromJsonAsync<AlertSummary>();
+        var alertId = Assert.Single(beforeSummary!.Alerts).Id;
+
+        var acknowledged = await client.PostAsync($"/api/alerts/{alertId}/acknowledge", null);
+        Assert.Equal(HttpStatusCode.NoContent, acknowledged.StatusCode);
+
+        var afterAck = await client.GetAsync(
+            $"/api/residents/{ResidentA}/alerts/summary?{RangeQuery(from, to)}");
+        var afterSummary = await afterAck.Content.ReadFromJsonAsync<AlertSummary>();
+
+        var entry = Assert.Single(afterSummary!.Alerts);
+        Assert.NotNull(entry.AcknowledgedAt);
+        Assert.False(string.IsNullOrWhiteSpace(entry.AcknowledgedByDisplayName));
     }
 }

@@ -5,7 +5,13 @@ import { chartDataFor, countTicks, presetRange, totalsFor } from "@/lib/summary"
 function bucket(
   periodStart: string,
   periodEnd: string,
-  counts: { kind: string; total: number; respondedInTime?: number; escalated?: number }[],
+  counts: {
+    kind: string;
+    total: number;
+    respondedInTime?: number;
+    escalated?: number;
+    emergencyCalled?: number;
+  }[],
 ): SummaryBucket {
   return {
     periodStart,
@@ -15,6 +21,7 @@ function bucket(
       total: c.total,
       respondedInTime: c.respondedInTime ?? 0,
       escalated: c.escalated ?? 0,
+      emergencyCalled: c.emergencyCalled ?? 0,
     })),
   };
 }
@@ -27,6 +34,7 @@ function summary(buckets: SummaryBucket[], granularity: AlertSummary["granularit
     to: buckets[buckets.length - 1]?.periodEnd ?? "2026-11-02T00:00:00Z",
     granularity,
     buckets,
+    alerts: [],
   };
 }
 
@@ -100,6 +108,18 @@ describe("chartDataFor", () => {
     expect(data.series[0].values).toEqual([1, 3]);
   });
 
+  it("carries each bucket's emergency-called count alongside its total", () => {
+    const s = summary([
+      bucket("2026-11-01T00:00:00Z", "2026-11-02T00:00:00Z", [
+        { kind: "Fall", total: 3, emergencyCalled: 1 },
+      ]),
+    ]);
+
+    const data = chartDataFor(s);
+
+    expect(data.series[0].emergencyCalled).toEqual([1]);
+  });
+
   it("returns no series for an empty summary", () => {
     const s = summary([]);
 
@@ -114,7 +134,7 @@ describe("totalsFor", () => {
   it("sums totals, responded-in-time counts, and escalations across buckets and kinds", () => {
     const s = summary([
       bucket("2026-11-01T00:00:00Z", "2026-11-02T00:00:00Z", [
-        { kind: "Fall", total: 2, respondedInTime: 1, escalated: 1 },
+        { kind: "Fall", total: 2, respondedInTime: 1, escalated: 1, emergencyCalled: 1 },
         { kind: "Wander", total: 1, respondedInTime: 1, escalated: 0 },
       ]),
       bucket("2026-11-02T00:00:00Z", "2026-11-03T00:00:00Z", [
@@ -122,11 +142,16 @@ describe("totalsFor", () => {
       ]),
     ]);
 
-    expect(totalsFor(s)).toEqual({ total: 4, respondedInTime: 2, escalated: 2 });
+    expect(totalsFor(s)).toEqual({ total: 4, respondedInTime: 2, escalated: 2, emergencyCalled: 1 });
   });
 
   it("returns zero totals for an empty summary", () => {
-    expect(totalsFor(summary([]))).toEqual({ total: 0, respondedInTime: 0, escalated: 0 });
+    expect(totalsFor(summary([]))).toEqual({
+      total: 0,
+      respondedInTime: 0,
+      escalated: 0,
+      emergencyCalled: 0,
+    });
   });
 });
 

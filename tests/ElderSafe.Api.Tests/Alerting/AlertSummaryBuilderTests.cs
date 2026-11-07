@@ -11,10 +11,11 @@ public class AlertSummaryBuilderTests
         DateTimeOffset raisedAt,
         AlertKind kind = AlertKind.Fall,
         int escalationLevel = 0,
-        DateTimeOffset? acknowledgedAt = null)
+        DateTimeOffset? acknowledgedAt = null,
+        DateTimeOffset? dispatchedAt = null)
     {
         return new AlertSnapshot(
-            Guid.NewGuid(), ResidentId, kind, raisedAt, raisedAt, escalationLevel, acknowledgedAt);
+            Guid.NewGuid(), ResidentId, kind, raisedAt, raisedAt, escalationLevel, acknowledgedAt, dispatchedAt);
     }
 
     [Fact(DisplayName = "REQ-FALL-09 a week-long range buckets by day")]
@@ -218,5 +219,40 @@ public class AlertSummaryBuilderTests
         var buckets = AlertSummaryBuilder.Build([], from, from, "day", Timeout);
 
         Assert.Empty(buckets);
+    }
+
+    [Fact(DisplayName = "REQ-FALL-10 an alert that reached emergency call is counted as emergency called")]
+    [Trait("Requirement", "REQ-FALL-10")]
+    public void An_alert_that_reached_emergency_call_is_counted_as_emergency_called()
+    {
+        var from = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
+        var to = from.AddDays(1);
+        var raisedAt = from.AddHours(1);
+
+        var alerts = new[]
+        {
+            Alert(raisedAt, escalationLevel: 2, dispatchedAt: raisedAt.AddMinutes(6))
+        };
+
+        var count = AlertSummaryBuilder.Build(alerts, from, to, "day", Timeout).Single().Counts
+            .Single(c => c.Kind == "Fall");
+
+        Assert.Equal(1, count.EmergencyCalled);
+    }
+
+    [Fact(DisplayName = "REQ-FALL-10 an alert a caregiver acknowledged is not counted as emergency called")]
+    [Trait("Requirement", "REQ-FALL-10")]
+    public void An_alert_a_caregiver_acknowledged_is_not_counted_as_emergency_called()
+    {
+        var from = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
+        var to = from.AddDays(1);
+        var raisedAt = from.AddHours(1);
+
+        var alerts = new[] { Alert(raisedAt, acknowledgedAt: raisedAt.AddSeconds(30)) };
+
+        var count = AlertSummaryBuilder.Build(alerts, from, to, "day", Timeout).Single().Counts
+            .Single(c => c.Kind == "Fall");
+
+        Assert.Equal(0, count.EmergencyCalled);
     }
 }
