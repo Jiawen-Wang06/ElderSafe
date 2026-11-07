@@ -45,19 +45,19 @@
 
 | ID | Requirement | Acceptance criteria | Comes from | Verified by |
 | --- | --- | --- | --- | --- |
-| REQ-WANDER-01 | The system shall detect when a resident leaves their safe zone. | An alert is raised after [3] consecutive location readings outside the zone. A single stray reading, or one with poor accuracy, does not raise an alert in the GPS-drift scenario. | UN-02, UN-03; RISK-03, RISK-04 | Automated test with simulator scenarios |
-| REQ-WANDER-02 | When a resident is detected outside the safe zone, the system shall send an alert to the resident's first caregiver. | The alert appears on that caregiver's dashboard within [5 seconds] of detection. | UN-02, UN-12; RISK-06 | Integration and end-to-end test |
-| REQ-WANDER-03 | If a caregiver has failed to respond, the system shall escalate the alert to the next caregiver in the escalation order. | Escalation happens after [2 minutes] without acknowledgement. An acknowledged alert is never escalated. | UN-04; RISK-06, RISK-08 | Automated test with a fake clock |
-| REQ-WANDER-04 | An authorized user shall be able to configure how many caregivers an alert escalates to. | Value is between 1 and the number of assigned caregivers. Escalation stops after that many. Default is all assigned caregivers. The change is recorded in the audit log. | UN-04, UN-09; RISK-07 | Automated test |
-| REQ-WANDER-05 | An authorized user shall be able to configure whether an emergency call is made when all configured caregivers fail to respond. | Default is off. The setting is saved per resident. The change is recorded in the audit log. | UN-04, UN-09; RISK-09 | Automated test |
-| REQ-WANDER-06 | If the emergency-call setting is on and all configured caregivers have failed to respond, the system shall make an emergency call. | Exactly one call is requested per incident. It carries the resident's identifier and last known location. No call is requested if the setting is off or any caregiver acknowledged. A failed call attempt is surfaced to caregivers. | UN-04; RISK-09, RISK-10, RISK-11 | Integration test with a simulated dispatch service |
-| REQ-WANDER-07 | An authorized user shall be able to configure the resident's safe zone. | The zone is a centre point and a radius. A saved zone applies to the next location reading. The change is recorded in the audit log. | UN-10; RISK-03 | Automated test |
+| REQ-WANDER-01 | The system shall detect when a resident leaves their safe zone. | An alert is raised after [3] consecutive location readings outside the zone. A single stray reading, or one with poor accuracy, does not raise an alert in the GPS-drift scenario. | UN-02, UN-03; RISK-03, RISK-04 | **Not yet built. Deferred — see [architecture](05-architecture.md) section 2.** |
+| REQ-WANDER-02 | When a resident is detected outside the safe zone, the system shall send an alert to the resident's first caregiver. | The alert appears on that caregiver's dashboard within [5 seconds] of detection. | UN-02, UN-12; RISK-06 | **Not yet built. Deferred — see [architecture](05-architecture.md) section 2.** |
+| REQ-WANDER-03 | If a caregiver has failed to respond, the system shall escalate the alert to the next caregiver in the escalation order. | Escalation happens after [2 minutes] without acknowledgement. An acknowledged alert is never escalated. | UN-04; RISK-06, RISK-08 | **Not yet built. Deferred — see [architecture](05-architecture.md) section 2.** |
+| REQ-WANDER-04 | An authorized user shall be able to configure how many caregivers an alert escalates to. | Value is between 1 and the number of assigned caregivers. Escalation stops after that many. Default is all assigned caregivers. The change is recorded in the audit log. | UN-04, UN-09; RISK-07 | **Not yet built. Deferred — see [architecture](05-architecture.md) section 2.** |
+| REQ-WANDER-05 | An authorized user shall be able to configure whether an emergency call is made when all configured caregivers fail to respond. | Default is off. The setting is saved per resident. The change is recorded in the audit log. | UN-04, UN-09; RISK-09 | **Not yet built. Deferred — see [architecture](05-architecture.md) section 2.** |
+| REQ-WANDER-06 | If the emergency-call setting is on and all configured caregivers have failed to respond, the system shall make an emergency call. | Exactly one call is requested per incident. It carries the resident's identifier and last known location. No call is requested if the setting is off or any caregiver acknowledged. A failed call attempt is surfaced to caregivers. | UN-04; RISK-09, RISK-10, RISK-11 | **Not yet built. Deferred — see [architecture](05-architecture.md) section 2.** |
+| REQ-WANDER-07 | An authorized user shall be able to configure the resident's safe zone. | The zone is a centre point and a radius. A saved zone applies to the next location reading. The change is recorded in the audit log. | UN-10; RISK-03 | **Not yet built. Deferred — see [architecture](05-architecture.md) section 2.** |
 
 ## 4. Device and system health
 
 | ID | Requirement | Acceptance criteria | Comes from | Verified by |
 | --- | --- | --- | --- | --- |
-| REQ-SYS-01 | The system shall raise a "no data" alert when a resident's device has not reported for [5 minutes]. | The alert reaches the first caregiver and follows the same escalation rules as other alerts. It clears automatically when reporting resumes. | UN-05; RISK-05, RISK-01, RISK-03 | Automated test with a fake clock |
+| REQ-SYS-01 | The system shall raise a "no data" alert when a resident's device has not reported for [5 minutes]. | The alert reaches the first caregiver and follows the same escalation rules as other alerts. It clears automatically when reporting resumes. | UN-05; RISK-05, RISK-01, RISK-03 | **Not yet built. Deferred — see [architecture](05-architecture.md) section 2.** |
 
 ## 5. Access and accountability
 
@@ -72,8 +72,8 @@
 
 | ID | Requirement | Acceptance criteria | Comes from | Verified by |
 | --- | --- | --- | --- | --- |
-| REQ-AI-01 | A shift summary shall mention only events stored in the system, and shall cite the identifier of each event it mentions. | On the evaluation set, no summary states an event that is absent from the input, and no summary omits an alert that was escalated. Every cited identifier exists. | UN-08; RISK-13 | Evaluation suite in CI |
-| REQ-AI-02 | The system shall validate a generated summary against the events it was given, and shall not show a summary that fails validation. | Validation rejects a summary citing an identifier absent from the input, and one omitting an escalated alert. A rejected summary is not displayed; the caregiver sees the underlying events instead. Validation runs on every summary, whichever generator produced it. | UN-08; RISK-13 | Unit tests on the validator, with no model call |
+| REQ-AI-01 | A shift summary shall mention only events stored in the system, and shall cite the identifier of each event it mentions. | On the evaluation set, no summary states an event that is absent from the input, and no summary omits an alert that was escalated. Every cited identifier exists. | UN-08; RISK-13 | **Not yet built. Designed in [ADR-005](adr/ADR-005-grounded-llm-summary.md), deferred — see [architecture](05-architecture.md) section 2.** |
+| REQ-AI-02 | The system shall validate a generated summary against the events it was given, and shall not show a summary that fails validation. | Validation rejects a summary citing an identifier absent from the input, and one omitting an escalated alert. A rejected summary is not displayed; the caregiver sees the underlying events instead. Validation runs on every summary, whichever generator produced it. | UN-08; RISK-13 | **Not yet built. Designed in [ADR-005](adr/ADR-005-grounded-llm-summary.md), deferred — see [architecture](05-architecture.md) section 2.** |
 
 ## 7. Resident configuration
 
@@ -122,3 +122,4 @@
 | 1.2 | 2026-11-06 | REQ-CFG-08 added: a resident can reorder its assigned caregivers' escalation position. REQ-CFG-09 added: the escalation-limit control offered to a resident is capped to the number of caregivers currently assigned |
 | 1.3 | 2026-11-06 | REQ-FALL-10 added: the alert summary also lists individual alerts, each with who acknowledged it and whether it reached an emergency call |
 | 1.4 | 2026-11-06 | REQ-CFG-08 extended: removing a caregiver closes the gap left in the remaining caregivers' escalation order |
+| 1.5 | 2026-11-06 | REQ-WANDER-01 to 07, REQ-SYS-01, REQ-AI-01 and REQ-AI-02 marked deferred, matching the actual state of the code. The requirements document, the architecture document and the README had been describing these as built or evaluated since the project's first day; none of them have any implementation |
