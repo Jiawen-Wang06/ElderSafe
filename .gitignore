@@ -18,6 +18,10 @@ coverage/
 *.coverage
 *.coveragexml
 
+# dotnet publish output, and the zip made from it for manual Azure deploys.
+publish/
+*.zip
+
 # The dashboard is built into the API's wwwroot by CI. Committing build
 # output means every UI change arrives as a large unreadable diff.
 src/ElderSafe.Api/wwwroot/
