@@ -23,18 +23,18 @@ A reviewer should be able to clone the repository and have it running with two c
 | Capability | Decision | Why |
 | --- | --- | --- |
 | Fall detection | **Built**, rule-based threshold detector | A trained model needs a dataset, a training pipeline and a day of tuning. See [ADR-002](adr/ADR-002-rule-based-detector.md) |
-| Wandering detection | **Built**, circular geofence | Plain geometry, a few hours including tests |
+| Wandering detection | **Deferred** | Specified (REQ-WANDER-01 to 07) but not implemented within the build budget; the detector sits behind the same `IFallDetector`-style seam as fall detection, so it can be added without reworking alerting or escalation |
 | Alerting, acknowledgement, escalation | **Built** | This is the core of the product and the part the risk file cares about most |
 | Emergency call | **Built**, against a simulated dispatch service | An interface and a logging implementation. Cheap, and it demonstrates the design |
 | Safe-zone and escalation configuration | **Built** | Straightforward CRUD, required by REQ-FALL-04 and REQ-WANDER-07 |
 | Caregiver dashboard | **Built**, React + TypeScript, one screen | Kept because the target role requires React and TypeScript |
 | Device simulator | **Built**, in-process background service | Avoids a second process. See [ADR-003](adr/ADR-003-in-process-simulator.md) |
 | Database | **Built**, SQLite through EF Core | No container, no server. See [ADR-001](adr/ADR-001-sqlite-over-postgres.md) |
-| Shift summary | **Built**, grounded generation with a validator | The guardrail is the valuable part and needs no API key to test. See [ADR-005](adr/ADR-005-grounded-llm-summary.md) |
+| Shift summary | **Deferred** | Designed in [ADR-005](adr/ADR-005-grounded-llm-summary.md) — grounded generation with a validator that needs no API key to test — but not implemented within the build budget |
 | Trained ML model | **Deferred** | Needs a dataset and training time. The detector sits behind an interface so a model can replace the rules later |
 | FHIR export | **Deferred** | Needs a HAPI FHIR server running alongside |
 | Caregiver authentication and per-resident authorization | **Built**, ASP.NET Core Identity with cookies | The data is personal health information; a stub would leave the hazard uncontrolled. See [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
-| Azure deployment | **Built**, single Web App | One `az webapp up`, no Bicep on day one |
+| Azure deployment | **Deferred** | Decided in [ADR-004](adr/ADR-004-single-web-app.md) — a single Web App, `az webapp up`, no Bicep on day one — but not yet performed |
 
 Deferred items stay in the requirements register with no passing test, so `traceability.md` shows the gaps honestly rather than hiding them.
 
@@ -113,6 +113,8 @@ A trained model implements the same interface later. Nothing else changes.
 
 ### The shift summary
 
+**Deferred — designed but not implemented; see section 2.**
+
 The summary is not "send the events to a model and print what comes back." The useful structure is three parts, and only the middle one needs a model:
 
 1. **Ground.** Build the prompt from stored events only. Each event carries its ID, and the prompt instructs the model to cite the ID of every event it mentions. Resident identifiers go in; names do not.
@@ -121,7 +123,7 @@ The summary is not "send the events to a model and print what comes back." The u
 
 The validator is a pure function over the events and the text. It needs no API key, runs in milliseconds, and is where the tests live. That is deliberate: the guardrail is the part a reviewer in this domain cares about, and it is also the part that can be proven in CI for free.
 
-This arrangement means the feature is complete and testable now, and switching on a real model later is a configuration change rather than new code.
+If built this way, the arrangement would make the feature complete and testable without ever calling a model, and switching on a real model later would be a configuration change rather than new code.
 
 ### Escalation
 
@@ -233,3 +235,4 @@ Each of these is a deliberate trade against the two-day budget, and each is reco
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-11-05 | First draft, scoped to a 1 to 2 day build |
+| 0.2 | 2026-11-06 | Scope table corrected: wandering detection, the shift summary and Azure deployment were marked **Built** since the first draft but were never implemented or performed. Marked **Deferred**, matching [04-software-requirements.md](04-software-requirements.md) |
