@@ -12,6 +12,8 @@ I built it to show how I work on software in a regulated domain: requirements tr
 
 ![ElderSafe demo: simulating a fall, acknowledging it, and viewing the summary](docs/media/demo.gif)
 
+**Live demo:** [eldersafe-dtc4hucbascmcgd8.canadaeast-01.azurewebsites.net](https://eldersafe-dtc4hucbascmcgd8.canadaeast-01.azurewebsites.net) — sign in with `demo.caregiver@example.invalid` / `Demo-Passw0rd!` (see [Run it locally](#run-it-locally) for the full account list). It's on Azure's free tier, so the first request after a quiet period can take a few seconds to wake up.
+
 ## Status
 
 Documentation first, then a two-day build. The design is deliberately small, and [the architecture document](docs/05-architecture.md) says what was cut and why.
@@ -106,8 +108,7 @@ Deliberate omissions, each with a reason in the architecture document:
 - **Alerts reach the dashboard only.** There is no push notification, SMS or call, so a caregiver who is not signed in is not told. Escalation still runs server-side and an emergency call still follows an exhausted chain, but this is the project's largest residual risk ([ADR-007](docs/adr/ADR-007-dashboard-only-notification.md)).
 - **No device pairing flow.** Devices authenticate and are bound to a resident, but pairing is seeded. Creating and revoking pairings needs an administrator role that does not exist yet.
 - **No FHIR export.** Needs a FHIR server running alongside.
-- **No Azure deployment yet.** Decided in [ADR-004](docs/adr/ADR-004-single-web-app.md) — a single Web App, `az webapp up`, no Bicep on day one — but not yet performed.
-- **No staging slot or infrastructure as code.** The next piece of work once a first deployment exists ([ADR-004](docs/adr/ADR-004-single-web-app.md)).
+- **No staging slot or infrastructure as code.** Deployed manually to a single Azure Web App, free tier, per [ADR-004](docs/adr/ADR-004-single-web-app.md). The gated pipeline with slots and Bicep is the next piece of work.
 
 ## Working agreements
 
