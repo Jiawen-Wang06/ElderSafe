@@ -80,7 +80,7 @@ jobs:
   traceability:
     name: Traceability
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, dashboard]
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -91,6 +91,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: test-results
+          path: artifacts
+
+      - name: Download dashboard test results
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-test-results
           path: artifacts
 
       - name: Set up Python
@@ -139,3 +145,20 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+
+      # Separate from the `npm test` gate above: this run's only purpose is
+      # producing JUnit XML for tools/generate_traceability.py, which traces
+      # REQ-CFG-09's coverage (the only requirement currently verified on
+      # the frontend rather than the API) into the same matrix as the
+      # backend's .trx results.
+      - name: Run tests with JUnit output for traceability
+        if: always()
+        run: npm run test:junit
+
+      - name: Upload dashboard test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-test-results
+          path: artifacts/vitest-results.xml
+          if-no-files-found: error
