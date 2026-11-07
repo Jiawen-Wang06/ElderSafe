@@ -11,7 +11,12 @@ namespace ElderSafe.Api.Alerting;
 /// not yet failed to be. Collapsing that into one of the two counts would
 /// state something about an outcome that has not happened yet.
 /// </remarks>
-public sealed record AlertKindCount(string Kind, int Total, int RespondedInTime, int Escalated);
+public sealed record AlertKindCount(
+    string Kind,
+    int Total,
+    int RespondedInTime,
+    int Escalated,
+    int EmergencyCalled);
 
 /// <summary>One period of a summary, such as one day of a week-long view.</summary>
 /// <remarks>
@@ -27,7 +32,28 @@ public sealed record SummaryBucket(
     IReadOnlyList<AlertKindCount> Counts);
 
 /// <summary>
-/// Alert counts for one resident over a date range (REQ-FALL-09).
+/// One alert in a summary's range, for the list behind the bucket counts
+/// (REQ-FALL-10).
+/// </summary>
+/// <remarks>
+/// <see cref="AcknowledgedByDisplayName"/> is a name, not a caregiver ID: the
+/// summary is read by other caregivers assigned to the same resident, who
+/// already see each other's names on the resident's configuration view, so
+/// this adds no new disclosure beyond what REQ-CFG-07 already allows. Null
+/// means the alert has not been acknowledged yet, which is also why the
+/// field is a display name and not "no one" — a caregiver reading a list
+/// should not have to tell "not yet" apart from "by someone unnamed."
+/// </remarks>
+public sealed record SummaryAlertEntry(
+    Guid Id,
+    AlertKind Kind,
+    DateTimeOffset RaisedAt,
+    DateTimeOffset? AcknowledgedAt,
+    string? AcknowledgedByDisplayName,
+    bool EmergencyCalled);
+
+/// <summary>
+/// Alert counts for one resident over a date range (REQ-FALL-09, REQ-FALL-10).
 /// </summary>
 /// <remarks>
 /// Named and described as alerts raised, deliberately never as falls that
@@ -43,4 +69,5 @@ public sealed record AlertSummary(
     DateTimeOffset From,
     DateTimeOffset To,
     string Granularity,
-    IReadOnlyList<SummaryBucket> Buckets);
+    IReadOnlyList<SummaryBucket> Buckets,
+    IReadOnlyList<SummaryAlertEntry> Alerts);

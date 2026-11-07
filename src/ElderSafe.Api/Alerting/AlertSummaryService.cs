@@ -89,6 +89,25 @@ public sealed class AlertSummaryService
         var buckets = AlertSummaryBuilder.Build(
             alerts, from, to, granularity, _escalationOptions.ResponseTimeout);
 
-        return new AlertSummary(resident.Id, resident.DisplayName, from, to, granularity, buckets);
+        // A separate projection rather than building this from the snapshots
+        // above: AlertSnapshot is deliberately kept to only what the
+        // escalation policy needs (see its own remarks), and an
+        // acknowledger's display name is not that. Pulling it here, once,
+        // keeps that contract intact instead of growing it for a reader that
+        // is not the policy.
+        var alertEntries = await _context.Alerts
+            .Where(a => a.ResidentId == residentId && a.RaisedAt >= from && a.RaisedAt < to)
+            .OrderByDescending(a => a.RaisedAt)
+            .Select(a => new SummaryAlertEntry(
+                a.Id,
+                a.Kind,
+                a.RaisedAt,
+                a.AcknowledgedAt,
+                a.AcknowledgedByCaregiver == null ? null : a.AcknowledgedByCaregiver.DisplayName,
+                a.DispatchedAt != null))
+            .ToListAsync(cancellationToken);
+
+        return new AlertSummary(
+            resident.Id, resident.DisplayName, from, to, granularity, buckets, alertEntries);
     }
 }
