@@ -104,14 +104,18 @@ jobs:
         with:
           python-version: '3.12'
 
-      # No --check yet. A requirement counts as accounted for when it has a
-      # passing test or is marked deferred in the requirements document, and
-      # some are still neither. The gate turns on once that list is empty.
-      - name: Generate the traceability matrix
+      # --check fails the job if any requirement is neither verified by a
+      # passing test nor marked deferred in the requirements document, or if
+      # a test names a requirement that does not exist. pipefail keeps that
+      # exit code through the tee.
+      - name: Generate and check the traceability matrix
+        shell: bash
         run: |
+          set -o pipefail
           python tools/generate_traceability.py \
             --results artifacts \
             --out artifacts/traceability.md \
+            --check \
             | tee artifacts/summary.txt
 
       - name: Publish the summary

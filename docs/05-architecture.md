@@ -3,8 +3,8 @@
 | | |
 | --- | --- |
 | **Product** | ElderSafe |
-| **Document status** | Draft v0.1 |
-| **Date** | 2026-11-05 |
+| **Document status** | Draft v0.4 |
+| **Date** | 2026-11-09 |
 | **Safety class** | C (see [intended use](01-intended-use.md) section 7) |
 | **Related documents** | [Risk management](02-risk-management.md), [Software requirements](04-software-requirements.md), [ADRs](adr/) |
 
@@ -26,12 +26,16 @@ A reviewer should be able to clone the repository and have it running with two c
 | Wandering detection | **Deferred** | Specified (REQ-WANDER-01 to 07) but not implemented within the build budget; the detector sits behind the same `IFallDetector`-style seam as fall detection, so it can be added without reworking alerting or escalation |
 | Alerting, acknowledgement, escalation | **Built** | This is the core of the product and the part the risk file cares about most |
 | Emergency call | **Built**, against a simulated dispatch service | An interface and a logging implementation. Cheap, and it demonstrates the design |
-| Safe-zone and escalation configuration | **Built** | Straightforward CRUD, required by REQ-FALL-04 and REQ-WANDER-07 |
+| Escalation and emergency-call configuration | **Built**, by the resident account | Escalation limit, emergency-call setting and contact number, and caregiver assignment and order (REQ-FALL-04, REQ-FALL-05, REQ-CFG-01 to 09) |
+| Safe-zone configuration | **Deferred** | Only meaningful once wandering detection exists (REQ-WANDER-07) |
 | Caregiver dashboard | **Built**, React + TypeScript, one screen | Kept because the target role requires React and TypeScript |
 | Device simulator | **Built**, in-process background service | Avoids a second process. See [ADR-003](adr/ADR-003-in-process-simulator.md) |
 | Database | **Built**, SQLite through EF Core | No container, no server. See [ADR-001](adr/ADR-001-sqlite-over-postgres.md) |
 | Shift summary | **Deferred** | Designed in [ADR-005](adr/ADR-005-grounded-llm-summary.md) — grounded generation with a validator that needs no API key to test — but not implemented within the build budget |
-| Trained ML model | **Deferred** | Needs a dataset and training time. The detector sits behind an interface so a model can replace the rules later |
+| Trained ML model and measured accuracy | **Deferred** | Needs a dataset and training time. The detector sits behind an interface so a model can replace the rules later. The accuracy targets are REQ-FALL-11 |
+| Showing a failed emergency call to caregivers | **Deferred** | A failed attempt is retried on every sweep and written to the audit log, but the dashboard does not show it (REQ-FALL-12) |
+| Auditing reads of resident data | **Deferred** | Acknowledgements, alert lifecycle events and configuration changes are audited; reading the alert list, summary or trace is not (REQ-SEC-05) |
+| "No data" alert | **Deferred** | Specified (REQ-SYS-01) but not implemented within the build budget |
 | FHIR export | **Deferred** | Needs a HAPI FHIR server running alongside |
 | Caregiver authentication and per-resident authorization | **Built**, ASP.NET Core Identity with cookies | The data is personal health information; a stub would leave the hazard uncontrolled. See [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
 | Azure deployment | **Built**, single Web App | Deployed manually (portal + Kudu zip deploy), free tier, no Bicep on day one. See [ADR-004](adr/ADR-004-single-web-app.md) |
@@ -84,7 +88,7 @@ Everything inside the box is one process. The dashboard is static files served b
 | `AlertsHub` | Pushes new and escalated alerts to connected dashboards | REQ-FALL-02, REQ-WANDER-02 |
 | Identity | ASP.NET Core Identity. `Caregiver` derives from `IdentityUser`, so the caregiver *is* the authenticated user | REQ-SEC-03 |
 | `ResidentAccessGuard` | Checks that the signed-in caregiver is assigned to the resident being requested | REQ-SEC-01 |
-| `AuditLog` | Append-only record of views, acknowledgements and configuration changes, attributed to the signed-in caregiver | REQ-SEC-02 |
+| `AuditLog` | Append-only record of alert lifecycle events, acknowledgements and configuration changes, attributed to the signed-in account. Reads are not yet recorded | REQ-SEC-02, REQ-CFG-05; REQ-SEC-05 deferred |
 | `ShiftSummaryService` | Builds a grounded prompt from stored events, calls a generator, validates the result | REQ-AI-01, REQ-AI-02 |
 | `ISummaryGenerator` | Abstraction over text generation. Two implementations: an LLM client, and a deterministic template generator used offline and in CI | REQ-AI-01 |
 | `SummaryValidator` | Rejects a summary citing an event ID that is not in the input, or omitting an escalated alert | REQ-AI-02 |
@@ -218,7 +222,7 @@ Authentication added roughly two to three hours to day 2, taken from the setting
 
 Stated plainly, because a reviewer will spot it anyway:
 
-- **The detector is not trained or validated.** Rules tuned by hand on simulated data say nothing about accuracy on real falls. REQ-FALL-01's acceptance criteria cannot be met by this build. Measuring sensitivity against a simulator that the same author wrote measures the simulator, not the detector.
+- **The detector is not trained or validated.** Rules tuned by hand on simulated data say nothing about accuracy on real falls. The accuracy targets that would prove otherwise are REQ-FALL-11, deferred. Measuring sensitivity against a simulator that the same author wrote measures the simulator, not the detector.
 - **SQLite is single-writer.** Fine for one process and a demo, wrong for a real deployment.
 - **Passwords live in the application's own database.** Hashed by Identity, but a real deployment should hand sign-on to Entra ID and store none ([ADR-006](adr/ADR-006-identity-cookie-auth.md)).
 - **The live demo has published credentials.** Anyone who reads the README can sign in, which is only acceptable because every record is synthetic.
@@ -226,7 +230,9 @@ Stated plainly, because a reviewer will spot it anyway:
 - **Alerts reach the dashboard and nowhere else.** A caregiver who is not signed in and looking at a screen is not told. The escalation chain limits the harm, but if no assigned caregiver has an active session nobody is notified until one signs in. This is RISK-16, the largest residual risk in the project, and [ADR-007](adr/ADR-007-dashboard-only-notification.md) explains why push notification was deferred.
 - **There is no pairing flow.** Devices authenticate and are bound to one resident, but the only device in the system is seeded. Creating a pairing, showing its key once and revoking it are deliberately out of scope: the interesting part is not the endpoint but deciding who may pair a device to a resident, and there is no administrator role to answer that. Getting a key onto a real band is a hardware question as well — factory provisioning or Bluetooth, used once at setup rather than as the data path.
 - **No FHIR export.** Deferred entirely.
-- **The shift summary ships with the template generator by default.** The grounding and the validator are real and tested, but unless a key is configured the text is produced from a template rather than a model. The validator behaves identically either way, which is the point, but no claim is made about a real model's output quality until one has been run against the evaluation scenarios.
+- **There is no shift summary.** The design in [ADR-005](adr/ADR-005-grounded-llm-summary.md) — grounded generation, a template generator for offline use and CI, and a validator that treats model output as untrusted — is not implemented (REQ-AI-01, REQ-AI-02, deferred).
+- **A failed emergency call is not shown to caregivers.** It is retried on every sweep and written to the audit log, but nobody watching the dashboard learns that the last safety net failed (REQ-FALL-12, deferred).
+- **Reads are not audited.** The audit log records who acknowledged an alert and who changed configuration, but not who looked at a resident's alerts, summary or sensor trace (REQ-SEC-05, deferred).
 
 Each of these is a deliberate trade against the two-day budget, and each is recorded as future work in the README.
 
@@ -237,3 +243,4 @@ Each of these is a deliberate trade against the two-day budget, and each is reco
 | 0.1 | 2026-11-05 | First draft, scoped to a 1 to 2 day build |
 | 0.2 | 2026-11-06 | Scope table corrected: wandering detection, the shift summary and Azure deployment were marked **Built** since the first draft but were never implemented or performed. Marked **Deferred**, matching [04-software-requirements.md](04-software-requirements.md) |
 | 0.3 | 2026-11-06 | Azure deployment marked **Built**: deployed manually to a single free-tier Web App |
+| 0.4 | 2026-11-09 | Scope table: safe-zone configuration marked **Deferred** (it had been listed as built with escalation settings); deferred rows added for measured accuracy (REQ-FALL-11), showing a failed emergency call (REQ-FALL-12), auditing reads (REQ-SEC-05) and the "no data" alert (REQ-SYS-01). `AuditLog` row corrected: reads were never recorded. Section 10's shift-summary bullet corrected: it described the summary as shipping, but nothing of it is built |
