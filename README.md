@@ -1,4 +1,6 @@
-# ElderSafe
+<p align="center">
+  <img src="docs/media/headerImg.png" alt="ElderSafe" width="100%">
+</p>
 
 **Fall detection for older adults and their caregivers.**
 
