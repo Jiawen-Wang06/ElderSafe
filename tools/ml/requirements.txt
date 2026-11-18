@@ -1,0 +1,9 @@
+numpy
+scipy
+scikit-learn
+lightgbm
+onnx
+onnxmltools
+onnxruntime
+mlflow
+azureml-mlflow
