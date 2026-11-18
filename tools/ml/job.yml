@@ -1,0 +1,28 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+# The Azure ML training job for the fall model. Submit from tools/ml with
+#   az ml job create -f job.yml
+# or recreate it in Studio with the same command, inputs, environment and compute.
+# Anything the job writes to ./outputs is uploaded with the job's results.
+display_name: eldersafe-fall-lgbm
+experiment_name: eldersafe-fall
+description: Train on UCI (subject-wise CV), test once on UMAFall, export ONNX.
+code: .
+command: >-
+  python train.py
+  --uci ${{inputs.uci}}
+  --uma ${{inputs.uma}}
+  --out ./outputs
+  --data-version "uci-falls-waist:1,umafall:1"
+inputs:
+  uci:
+    type: uri_folder
+    path: azureml:uci-falls-waist:1
+    mode: download
+  uma:
+    type: uri_folder
+    path: azureml:umafall:1
+    mode: download
+environment:
+  image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04:latest
+  conda_file: conda.yml
+compute: azureml:cpu-cluster
