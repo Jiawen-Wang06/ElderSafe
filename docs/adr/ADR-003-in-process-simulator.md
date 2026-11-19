@@ -7,7 +7,7 @@
 
 There is no wearable. Something must produce accelerometer and GPS readings so the system can be demonstrated and tested. The original plan made the simulator a separate service posting to the API over HTTP, which mirrors how a real device behaves.
 
-Within a two-day budget, a second process means a second project to build, a second thing to start, and a second failure mode when a reviewer tries to run the demo.
+For a project that keeps its footprint small, a second process means a second project to build, a second thing to start, and a second failure mode when a reviewer tries to run the demo.
 
 ## Options
 

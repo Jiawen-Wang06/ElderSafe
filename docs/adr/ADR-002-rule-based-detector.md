@@ -7,14 +7,14 @@
 
 REQ-FALL-01 requires the system to detect a fall from motion data without any action by the resident. The original plan trained a model on a public fall dataset such as SisFall or UP-Fall and exported it to ONNX.
 
-That work is realistically several days on its own: obtain and understand the dataset, check its licence, engineer features, split by subject rather than by recording, train, tune, evaluate, export, then wire the runtime into the API. The build budget for the whole project is one to two days.
+That is substantial work on its own: obtain and understand the dataset, check its licence, engineer features, split by subject rather than by recording, train, tune, evaluate, export, then wire the runtime into the API. Doing it properly did not fit the first build's scope.
 
 There is also an honesty problem with the shortcut version. Training a model quickly and reporting "96% sensitivity" from a held-out split of simulated or lightly-handled data would produce a number that looks like evidence and is not. A reviewer who knows the domain would ask how the split was made, and the answer would be embarrassing.
 
 ## Options
 
 1. **Train a model now** — closest to the real product, but blows the budget and risks a rushed evaluation that misleads.
-2. **Threshold rules on accelerometer magnitude** — the classical approach in the fall-detection literature, implementable in an hour, and every decision it makes can be explained and unit-tested.
+2. **Threshold rules on accelerometer magnitude** — the classical approach in the fall-detection literature, small to implement, and every decision it makes can be explained and unit-tested.
 3. **Skip detection, trigger alerts by a button** — cheapest, but it removes the part of the product that matters and contradicts finding F-02, that a resident often cannot act after falling.
 
 ## Decision
@@ -35,7 +35,7 @@ A trained model implements the same interface when it is built. No other compone
 
 **Good**
 
-- Buildable in about an hour, with unit tests that can be read and argued with.
+- Small to build, with unit tests that can be read and argued with.
 - Every decision is explainable, which matters for a Class C product where a reviewer may ask why a given event was or was not a fall.
 - The stillness stage is what distinguishes a fall from sitting down heavily, and it is directly testable.
 - The interface keeps the model path open without pretending it is done.

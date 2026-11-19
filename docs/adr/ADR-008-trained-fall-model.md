@@ -5,7 +5,7 @@
 
 ## Context
 
-ADR-002 chose threshold rules over a trained model for two reasons: training would blow the build budget, and a quickly trained model would come with an accuracy figure that looks like evidence and is not. Its "revisit when" condition was a licensed dataset and the time to split it by subject, train and evaluate properly.
+ADR-002 chose threshold rules over a trained model for two reasons: training was out of scope for the first build, and a quickly trained model would come with an accuracy figure that looks like evidence and is not. Its "revisit when" condition was a licensed dataset and the time to split it by subject, train and evaluate properly.
 
 That condition is now met. There is still no way to collect real data in this project, so the model is trained on two public datasets of falls simulated by volunteers in a lab:
 
