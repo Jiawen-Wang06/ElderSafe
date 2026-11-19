@@ -1,6 +1,6 @@
 # ADR-002: Detect falls with thresholds rather than a trained model
 
-**Status:** Accepted
+**Status:** Accepted, then amended by [ADR-008](ADR-008-trained-fall-model.md) on 2026-11-18. The rule-based detector remains, tested and selectable, but a trained model is now the default detector.
 **Date:** 2026-11-05
 
 ## Context

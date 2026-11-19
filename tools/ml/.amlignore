@@ -1,0 +1,6 @@
+# Local clutter that must not be uploaded with the training code.
+mlflow.db
+mlruns/
+mlartifacts/
+outputs/
+__pycache__/

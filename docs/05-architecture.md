@@ -3,8 +3,8 @@
 | | |
 | --- | --- |
 | **Product** | ElderSafe |
-| **Document status** | Draft v0.4 |
-| **Date** | 2026-11-09 |
+| **Document status** | Draft v0.5 |
+| **Date** | 2026-11-18 |
 | **Safety class** | C (see [intended use](01-intended-use.md) section 7) |
 | **Related documents** | [Risk management](02-risk-management.md), [Software requirements](04-software-requirements.md), [ADRs](adr/) |
 
@@ -22,7 +22,7 @@ A reviewer should be able to clone the repository and have it running with two c
 
 | Capability | Decision | Why |
 | --- | --- | --- |
-| Fall detection | **Built**, rule-based threshold detector | A trained model needs a dataset, a training pipeline and a day of tuning. See [ADR-002](adr/ADR-002-rule-based-detector.md) |
+| Fall detection | **Built**: a model trained in Azure ML, run in-process as ONNX, with the rule-based detector kept as a configured fallback | Trained on public datasets and tested on one held out. See [ADR-008](adr/ADR-008-trained-fall-model.md), which amends [ADR-002](adr/ADR-002-rule-based-detector.md) |
 | Wandering detection | **Deferred** | Specified (REQ-WANDER-01 to 07) but not implemented within the build budget; the detector sits behind the same `IFallDetector`-style seam as fall detection, so it can be added without reworking alerting or escalation |
 | Alerting, acknowledgement, escalation | **Built** | This is the core of the product and the part the risk file cares about most |
 | Emergency call | **Built**, against a simulated dispatch service | An interface and a logging implementation. Cheap, and it demonstrates the design |
@@ -32,7 +32,7 @@ A reviewer should be able to clone the repository and have it running with two c
 | Device simulator | **Built**, in-process background service | Avoids a second process. See [ADR-003](adr/ADR-003-in-process-simulator.md) |
 | Database | **Built**, SQLite through EF Core | No container, no server. See [ADR-001](adr/ADR-001-sqlite-over-postgres.md) |
 | Shift summary | **Deferred** | Designed in [ADR-005](adr/ADR-005-grounded-llm-summary.md) — grounded generation with a validator that needs no API key to test — but not implemented within the build budget |
-| Trained ML model and measured accuracy | **Deferred** | Needs a dataset and training time. The detector sits behind an interface so a model can replace the rules later. The accuracy targets are REQ-FALL-11 |
+| Accuracy on real falls | **Deferred** | The model is evaluated on falls simulated by volunteers ([model card](models/fall-model-card.md)), not on real falls of older people, and its false-alarm rate is above target. That evaluation is REQ-FALL-11 |
 | Showing a failed emergency call to caregivers | **Deferred** | A failed attempt is retried on every sweep and written to the audit log, but the dashboard does not show it (REQ-FALL-12) |
 | Auditing reads of resident data | **Deferred** | Acknowledgements, alert lifecycle events and configuration changes are audited; reading the alert list, summary or trace is not (REQ-SEC-05) |
 | "No data" alert | **Deferred** | Specified (REQ-SYS-01) but not implemented within the build budget |
@@ -81,7 +81,7 @@ Everything inside the box is one process. The dashboard is static files served b
 | --- | --- | --- |
 | `DeviceSimulator` | Replays named scenarios as readings: normal activity, a fall, GPS drift at the zone edge, a wander, device goes silent | Test support for all |
 | `ReadingsController` | Accepts readings over HTTP, validates, persists, passes to the detectors | — |
-| `FallDetector` | Decides whether a window of readings contains a fall | REQ-FALL-01 |
+| `IFallDetector` | Decides whether a window of readings contains a fall. `OnnxFallDetector` (the trained model, default) or `ThresholdFallDetector` (the rules), chosen by `FallDetection:Detector` | REQ-FALL-01 |
 | `GeofenceEvaluator` | Decides whether a resident is outside the safe zone, and for how many readings | REQ-WANDER-01 |
 | `AlertService` | Raises alerts, tracks acknowledgement, runs escalation timers, decides when to dispatch | REQ-FALL-02 to 06, REQ-WANDER-02 to 06, REQ-SYS-01 |
 | `IEmergencyDispatch` | Abstraction over placing an emergency call. Implemented by `LoggingDispatch` | REQ-FALL-06, REQ-WANDER-06 |
@@ -96,13 +96,17 @@ Everything inside the box is one process. The dashboard is static files served b
 
 ### The fall detector
 
+The default detector is a trained model, described below the rules. The rules come first because they explain what the model's features look for.
+
+#### The rules (`ThresholdFallDetector`)
+
 A fall has a recognizable three-part shape in accelerometer magnitude, and finding F-01 (a fall takes under three seconds) sets the window:
 
 1. **Free fall** — magnitude drops below about 0.6 g
 2. **Impact** — magnitude spikes above about 2.5 g within roughly a second of the drop
 3. **Stillness** — low variance for about two seconds after the impact
 
-All three must occur inside a 3-second window. The stillness stage is what separates a fall from sitting down heavily or dropping the device, and it is the stage most worth unit-testing.
+All three must occur inside the 4-second detection window (`Alerting:DetectionWindow`). The stillness stage is what separates a fall from sitting down heavily or dropping the device, and it is the stage most worth unit-testing.
 
 The thresholds live in configuration, not in code, so they can be tuned without a rebuild.
 
@@ -113,7 +117,22 @@ public interface IFallDetector
 }
 ```
 
-A trained model implements the same interface later. Nothing else changes.
+#### The trained model (`OnnxFallDetector`)
+
+[ADR-008](adr/ADR-008-trained-fall-model.md) records the decision, and the [model card](models/fall-model-card.md) records the data, features and results.
+
+```
+Azure ML (once per model)                     API (every window)
+───────────────────────────                   ─────────────────────────────────
+data assets uci-falls-waist, umafall          4 s of readings from AlertService
+command job: tools/ml/train.py                → enough data? (≥ 3 s, ≥ 80% present)
+  8 features → LightGBM → ONNX                → FallFeatures: the same 8 features
+registered model eldersafe-fall + SHA-256     → ONNX Runtime: probability
+        │                                     → ≥ threshold in model.json → Fall
+        └── model.onnx, model.json ─────────▶ loaded at startup, hash checked
+```
+
+The model is the same `IFallDetector` interface, so alerting and escalation did not change. It runs inside the API process rather than on a hosted endpoint, so detecting a fall never waits on a network call. Its verdict names the model version, and that reason goes into the audit log and the alert trace.
 
 ### The shift summary
 
@@ -155,7 +174,7 @@ Six domain tables plus Identity's own, all in one `ElderSafeDbContext` deriving 
 **A fall becomes an alert**
 
 1. Simulator emits readings at 20 Hz for a scenario.
-2. `ReadingsController` stores each reading and hands the last 3 seconds to `FallDetector`.
+2. `ReadingIngestionService` stores the readings, and `AlertService` hands the last 4 seconds (`Alerting:DetectionWindow`) to the configured `IFallDetector`.
 3. On a positive verdict, `AlertService` creates an Alert in state `Open` at escalation level 0.
 4. `AlertsHub` pushes it to every connected dashboard for that resident's first caregiver.
 5. If no acknowledgement arrives within the timeout, the escalation service moves it to level 1, and so on.
@@ -184,7 +203,7 @@ The earlier plan had four source projects. Two is enough, and fewer moving parts
 | API | ASP.NET Core 8, minimal hosting | |
 | Live updates | SignalR | A WebSocket by hand would cost more than it saves |
 | Database | SQLite via EF Core | [ADR-001](adr/ADR-001-sqlite-over-postgres.md) |
-| Detection | Rule-based thresholds | [ADR-002](adr/ADR-002-rule-based-detector.md) |
+| Detection | LightGBM trained in Azure ML, run as ONNX in-process; rule-based fallback | [ADR-008](adr/ADR-008-trained-fall-model.md), amending [ADR-002](adr/ADR-002-rule-based-detector.md) |
 | Simulator | In-process `BackgroundService` | [ADR-003](adr/ADR-003-in-process-simulator.md) |
 | Shift summary | Grounded generation behind an interface, with a validator | [ADR-005](adr/ADR-005-grounded-llm-summary.md) |
 | Authentication | ASP.NET Core Identity, cookie-based | [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
@@ -222,7 +241,7 @@ Authentication added roughly two to three hours to day 2, taken from the setting
 
 Stated plainly, because a reviewer will spot it anyway:
 
-- **The detector is not trained or validated.** Rules tuned by hand on simulated data say nothing about accuracy on real falls. The accuracy targets that would prove otherwise are REQ-FALL-11, deferred. Measuring sensitivity against a simulator that the same author wrote measures the simulator, not the detector.
+- **The detector is not validated on real falls.** The model was trained and tested on falls simulated by young adults in two labs. It found 85% of the falls in the held-out dataset, and raised more false alarms than a product could live with. Real falls of older people are different, and nothing here measures them (REQ-FALL-11, deferred). The dashboard's simulator shows only typical falls, so the demo always detects them; that demonstrates the pipeline, not the accuracy.
 - **SQLite is single-writer.** Fine for one process and a demo, wrong for a real deployment.
 - **Passwords live in the application's own database.** Hashed by Identity, but a real deployment should hand sign-on to Entra ID and store none ([ADR-006](adr/ADR-006-identity-cookie-auth.md)).
 - **The live demo has published credentials.** Anyone who reads the README can sign in, which is only acceptable because every record is synthetic.
@@ -244,3 +263,4 @@ Each of these is a deliberate trade against the two-day budget, and each is reco
 | 0.2 | 2026-11-06 | Scope table corrected: wandering detection, the shift summary and Azure deployment were marked **Built** since the first draft but were never implemented or performed. Marked **Deferred**, matching [04-software-requirements.md](04-software-requirements.md) |
 | 0.3 | 2026-11-06 | Azure deployment marked **Built**: deployed manually to a single free-tier Web App |
 | 0.4 | 2026-11-09 | Scope table: safe-zone configuration marked **Deferred** (it had been listed as built with escalation settings); deferred rows added for measured accuracy (REQ-FALL-11), showing a failed emergency call (REQ-FALL-12), auditing reads (REQ-SEC-05) and the "no data" alert (REQ-SYS-01). `AuditLog` row corrected: reads were never recorded. Section 10's shift-summary bullet corrected: it described the summary as shipping, but nothing of it is built |
+| 0.5 | 2026-11-18 | Fall detection by a model trained in Azure ML and run in-process as ONNX ([ADR-008](adr/ADR-008-trained-fall-model.md)). Scope table, component table, detector section, alert flow (the window is 4 s and goes through `AlertService`, not the controller) and section 10 updated. The rules stay as a configured fallback |

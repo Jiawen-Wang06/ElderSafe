@@ -115,6 +115,26 @@ public class AlertTraceHttpTests
         Assert.True(trace.Thresholds.StillnessDurationSeconds > 0);
     }
 
+    [Fact(DisplayName = "REQ-FALL-08 the trace names the detector and the reason it recorded for the alert")]
+    [Trait("Requirement", "REQ-FALL-08")]
+    public async Task The_trace_names_the_detector_and_the_reason_it_recorded_for_the_alert()
+    {
+        // The test host runs as Development, where the trained model is the
+        // detector, so the trace must say so rather than present the rule's
+        // thresholds as if they had decided.
+        using var factory = new ElderSafeWebAppFactory();
+        var client = await SignedInAsync(factory);
+
+        var alertId = await SimulateFallAndGetAlertIdAsync(client, ResidentA);
+
+        var trace = await client.GetFromJsonAsync<AlertTrace>($"/api/alerts/{alertId}/trace");
+
+        Assert.NotNull(trace);
+        Assert.Equal("Onnx", trace!.Detector);
+        Assert.NotNull(trace.DecisionReason);
+        Assert.Contains("eldersafe-fall@", trace.DecisionReason);
+    }
+
     [Fact(DisplayName = "REQ-SEC-01 a caregiver cannot read the trace of an alert for an unassigned resident")]
     [Trait("Requirement", "REQ-SEC-01")]
     [Trait("Requirement", "REQ-FALL-08")]

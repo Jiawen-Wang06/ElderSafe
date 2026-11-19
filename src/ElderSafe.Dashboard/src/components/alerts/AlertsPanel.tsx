@@ -10,7 +10,12 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { api, ApiError } from "@/lib/api";
-import type { AlertTrace, AlertView, AssignedCaregiverView } from "@/lib/api";
+import type {
+  AlertTrace,
+  AlertView,
+  AssignedCaregiverView,
+  SimulationScenario,
+} from "@/lib/api";
 import { AccelerationTrace } from "@/components/AccelerationTrace";
 import { describeWait, isOpen, mergeAlert, mergeAlerts, secondsWaiting } from "@/lib/alertList";
 import { createAlertsConnection } from "@/lib/signalr";
@@ -237,12 +242,23 @@ export function AlertsPanel() {
     }
   }
 
-  async function simulateFall(residentId: string) {
+  async function simulate(residentId: string, residentName: string, scenario: SimulationScenario) {
     setSimulating(true);
     setNotice(null);
 
     try {
-      await api.simulate(residentId, "fall");
+      const result = await api.simulate(residentId, scenario);
+
+      // A fall shows up as an alert on its own. Movement that is correctly
+      // ignored shows nothing, so say what happened rather than leave the
+      // press looking broken.
+      if (result.alertId === null) {
+        setNotice(
+          scenario === "fall"
+            ? `The simulated fall for ${residentName} did not raise an alert.`
+            : `Ordinary movement sent for ${residentName}. No fall was detected, so no alert was raised.`,
+        );
+      }
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         setNotice(
@@ -456,7 +472,8 @@ export function AlertsPanel() {
 
                   {expanded === alert.id && (
                     <TableRow>
-                      <TableCell colSpan={6} id={`trace-${alert.id}`}>
+                      {/* Table cells never wrap by default; the trace's sentences must, or they stretch the row and the chart with it. */}
+                      <TableCell colSpan={6} id={`trace-${alert.id}`} className="whitespace-normal">
                         {traceError !== null ? (
                           <p role="alert" className="text-sm text-destructive">
                             {traceError}
@@ -490,25 +507,37 @@ export function AlertsPanel() {
             Simulate
           </CardTitle>
           <CardDescription>
-            Raises a fall from recorded sample readings, so detection and
-            escalation can be watched end to end.
+            Sends a few seconds of wearable readings. Each press varies the
+            readings within ranges measured from recorded falls and daily
+            activities, so detection can be watched on more than one fixed
+            example.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="flex flex-col gap-3">
-          <div className="flex flex-wrap gap-2">
-            {residents.map((resident) => (
+          {residents.map((resident) => (
+            <div key={resident.id} className="flex flex-wrap items-center gap-2">
+              <span className="min-w-32 text-sm font-medium">{resident.displayName}</span>
               <Button
-                key={resident.id}
                 variant="outline"
                 size="sm"
-                onClick={() => void simulateFall(resident.id)}
+                onClick={() => void simulate(resident.id, resident.displayName, "fall")}
                 disabled={simulating}
               >
-                Fall — {resident.displayName}
+                Simulate fall
               </Button>
-            ))}
-          </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  void simulate(resident.id, resident.displayName, "ordinary-movement")
+                }
+                disabled={simulating}
+              >
+                Simulate ordinary movement
+              </Button>
+            </div>
+          ))}
 
           <p className="text-xs text-muted-foreground">
             Synthetic data only. The simulator is enabled in development and

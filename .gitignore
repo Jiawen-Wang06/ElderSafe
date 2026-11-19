@@ -75,3 +75,10 @@ local.settings.json
 
 # Infrastructure
 *.bicepparam.local
+
+# Fall model training: datasets are licensed separately and never committed
+data/
+.venv-ml/
+mlruns/
+artifacts/
+mlflow.db

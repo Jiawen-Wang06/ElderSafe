@@ -16,6 +16,13 @@ public sealed class FallDetectorOptions
     public const string SectionName = "FallDetection";
 
     /// <summary>
+    /// Which detector runs. The trained model is the default (ADR-008): on
+    /// held-out data it detects far more falls than the rule. The rule stays
+    /// selectable as a fallback.
+    /// </summary>
+    public FallDetectorKind Detector { get; set; } = FallDetectorKind.Onnx;
+
+    /// <summary>
     /// Magnitude below which the device is treated as falling freely, in g.
     /// In free fall the sensor reads close to 0 g, because it is no longer
     /// being held up against gravity.

@@ -118,6 +118,20 @@ public sealed class AlertTraceService
                     + (r.AccelerationZ * r.AccelerationZ))))
             .ToList();
 
+        // The audit entry written when the alert was raised carries the
+        // detector's own reason, so the trace reports what decided rather
+        // than what is configured today.
+        var raisedPrefix = $"Fall alert {alert.Id}: ";
+        var raisedDetail = await _context.AuditEntries
+            .Where(e => e.Action == "RaisedAlert"
+                && e.ResidentId == alert.ResidentId
+                && e.Detail != null
+                && e.Detail.StartsWith(raisedPrefix))
+            .Select(e => e.Detail)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var decisionReason = raisedDetail?[raisedPrefix.Length..];
+
         var thresholds = new DetectorThresholds(
             _detectorOptions.FreeFallThresholdG,
             _detectorOptions.ImpactThresholdG,
@@ -134,6 +148,8 @@ public sealed class AlertTraceService
             alert.RaisedAt,
             windowStart,
             windowEnd,
+            _detectorOptions.Detector.ToString(),
+            decisionReason,
             thresholds,
             samples);
     }
