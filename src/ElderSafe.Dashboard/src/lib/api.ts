@@ -105,6 +105,17 @@ export interface AlertSummary {
 }
 
 /** A resident's alerting configuration, as shown and edited (REQ-CFG-01, REQ-CFG-06). */
+/** Scenarios the dashboard's simulator can send. */
+export type SimulationScenario = "fall" | "ordinary-movement";
+
+/** What a triggered scenario produced. */
+export interface SimulationResult {
+  scenario: SimulationScenario;
+  readingsAccepted: number;
+  /** The alert the readings raised, or null when the detector saw no fall. */
+  alertId: string | null;
+}
+
 export interface ResidentSettingsView {
   residentId: string;
   displayName: string;
@@ -273,8 +284,8 @@ export const api = {
     return request<void>(`/api/alerts/${alertId}/acknowledge`, { method: "POST" });
   },
 
-  simulate(residentId: string, scenario: string): Promise<void> {
-    return request<void>(`/api/residents/${residentId}/simulate/${scenario}`, {
+  simulate(residentId: string, scenario: SimulationScenario): Promise<SimulationResult> {
+    return request<SimulationResult>(`/api/residents/${residentId}/simulate/${scenario}`, {
       method: "POST",
     });
   },

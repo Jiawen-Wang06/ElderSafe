@@ -67,7 +67,9 @@ public sealed class SimulationController : ControllerBase
             return NotFound();
         }
 
-        if (!ScenarioLibrary.TryBuild(scenario, _timeProvider.GetUtcNow(), out var readings))
+        // Varied on every request, so repeated presses show different
+        // readings. The tests pin the canonical form instead.
+        if (!ScenarioLibrary.TryBuild(scenario, _timeProvider.GetUtcNow(), Random.Shared, out var readings))
         {
             return BadRequest($"Unknown scenario. Available: {string.Join(", ", ScenarioLibrary.Names)}.");
         }
