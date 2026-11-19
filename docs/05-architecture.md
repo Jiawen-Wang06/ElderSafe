@@ -154,16 +154,17 @@ One hosted service ticks every few seconds and looks for alerts that are open, u
 
 ## 5. Data model
 
-Six domain tables plus Identity's own, all in one `ElderSafeDbContext` deriving from `IdentityDbContext<Caregiver>`, created by EF Core migrations.
+Six domain tables plus Identity's own, all in one `ElderSafeDbContext` deriving from `IdentityDbContext<UserAccount, IdentityRole<Guid>, Guid>`, created by EF Core migrations. Accounts are stored in Identity's `AspNetUsers` table.
 
 | Table | Key columns |
 | --- | --- |
-| `Residents` | Id, DisplayName, SafeZoneLat, SafeZoneLng, SafeZoneRadiusMeters, EscalationLimit, EmergencyCallEnabled |
-| `Caregivers` | Derives from `IdentityUser`: Id, UserName, Email, PasswordHash, plus DisplayName |
+| `AspNetUsers` | `UserAccount`, deriving from `IdentityUser<Guid>`: Id, UserName, Email, PasswordHash, plus DisplayName and AccountType (Resident or Caregiver) |
+| `Residents` | Id, DisplayName, AccountId, SafeZoneLatitude, SafeZoneLongitude, SafeZoneRadiusMeters, EscalationLimit, EmergencyCallEnabled, EmergencyContactPhoneNumber |
 | `ResidentCaregivers` | ResidentId, CaregiverId, Order |
-| `Readings` | Id, ResidentId, Timestamp, AccelX/Y/Z, Lat, Lng, AccuracyMeters |
-| `Alerts` | Id, ResidentId, Kind (Fall/Wander/NoData), RaisedAt, State, AcknowledgedBy, AcknowledgedAt, EscalationLevel, DispatchedAt |
-| `AuditEntries` | Id, At, Actor, Action, ResidentId, Detail |
+| `Devices` | Id, Name, ResidentId, KeyHash, PairedAt, RevokedAt |
+| `Readings` | Id, ResidentId, At, AccelerationX/Y/Z, Latitude, Longitude, AccuracyMeters |
+| `Alerts` | Id, ResidentId, Kind (Fall/Wander/NoData), RaisedAt, LastNotifiedAt, EscalationLevel, AcknowledgedAt, AcknowledgedByCaregiverId, DispatchedAt |
+| `AuditEntries` | Id, At, ActorCaregiverId, Action, ResidentId, Detail |
 
 `Readings` grows quickly under simulation. A background cleanup keeps the most recent few hours, which is enough for a demo.
 
@@ -251,3 +252,4 @@ Each of these is a deliberate scope trade, and each is recorded as future work i
 | 0.6 | 2026-11-18 | Shift summary built ([ADR-005](adr/ADR-005-grounded-llm-summary.md)): scope table, component table, summary section and section 10 updated |
 | 0.7 | 2026-11-19 | Deployment as a container image ([ADR-009](adr/ADR-009-container-deployment.md)): scope and technology tables updated |
 | 0.8 | 2026-11-19 | Section 1 restates the constraint as a small footprint. Section 9 replaces the original build plan, which described steps never taken, with the delivery phases as they happened |
+| 0.9 | 2026-11-19 | Section 5 brought in line with the code: accounts are `UserAccount` with an account type, not `Caregiver`; the `Devices` table added; column names match the entities |

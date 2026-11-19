@@ -141,11 +141,10 @@ The dashboard never handles tokens:
 
 ## Docs that drift
 
-`docs/05-architecture.md` and ADR-006 still describe an earlier design and don't match the code:
+`docs/05-architecture.md` still describes an earlier design in places and doesn't match the code:
 
 | Docs say | Code has |
 |---|---|
-| `Caregiver : IdentityUser` | `UserAccount` |
 | `GeofenceEvaluator` | nothing yet (wandering detection is deferred) |
 | `DeviceSimulator` background service | `SimulationController` with `ScenarioLibrary` |
 | `ResidentAccessGuard` | `IResidentAccess` |
