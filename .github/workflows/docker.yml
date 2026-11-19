@@ -1,0 +1,110 @@
+name: Docker image
+
+# Builds the single ElderSafe image (API + dashboard) and smoke-tests it.
+#   - Pull requests: build and smoke-test only, so a broken Dockerfile fails
+#     the PR rather than a deployment.
+#   - Pushes to main: also publish to GitHub Container Registry as
+#     ghcr.io/<owner>/eldersafe:latest and :sha-<commit>.
+# The Azure Web App runs :latest (ADR-009). :sha-<commit> stays available
+# for rolling back to an exact build.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    name: Build, smoke-test and publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      # Registry paths must be lowercase; the owner name may not be.
+      - name: Image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/eldersafe" >> "$GITHUB_OUTPUT"
+
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Built once and loaded into the runner's Docker, so the image that is
+      # smoke-tested is exactly the one that is pushed.
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Starting the API proves more than the build does. Startup applies the
+      # migrations, seeds the demo data and loads the fall model with its
+      # hash check, so a missing model, a missing native ONNX Runtime library
+      # or an unwritable database all fail here.
+      - name: Smoke-test the image
+        run: |
+          image="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -m1 ':sha-')"
+          docker run -d --name eldersafe -p 8080:8080 \
+            -e DemoData__Enabled=true -e Simulation__Enabled=true "$image"
+
+          for attempt in $(seq 1 30); do
+            status="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/auth/me || true)"
+            if [ "$status" = "401" ]; then break; fi
+            sleep 2
+          done
+
+          docker logs eldersafe
+          test "$status" = "401" || { echo "API did not start (last status: $status)"; exit 1; }
+
+          # The dashboard is served from the same process.
+          curl -sf http://localhost:8080/ | grep -qi '<div id="root"' \
+            || { echo "Dashboard index.html was not served"; exit 1; }
+
+          # Sign in as the seeded demo caregiver, then raise a simulated fall,
+          # which runs the ONNX model end to end. The auth cookie is Secure
+          # outside Development, and curl will not send a Secure cookie over
+          # plain http, so it is passed back as a header instead.
+          cookie="$(curl -s -D - -o /dev/null -H 'Content-Type: application/json' \
+            -d '{"userName":"demo.caregiver@example.invalid","password":"Demo-Passw0rd!"}' \
+            http://localhost:8080/api/auth/sign-in \
+            | tr -d '\r' | grep -i '^set-cookie: ElderSafe.Auth=' | cut -d' ' -f2 | cut -d';' -f1)"
+          test -n "$cookie" || { echo "Sign-in did not return a session cookie"; exit 1; }
+
+          curl -sf -H "Cookie: $cookie" -X POST \
+            http://localhost:8080/api/residents/11111111-1111-1111-1111-111111111111/simulate/fall \
+            | tee fall.json
+          grep -q '"alertId":"' fall.json || { echo "The simulated fall raised no alert"; exit 1; }
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Pushes the image that was just smoke-tested, not a rebuild of it.
+      - name: Publish
+        if: github.event_name != 'pull_request'
+        run: docker push --all-tags ${{ steps.image.outputs.name }}

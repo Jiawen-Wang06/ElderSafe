@@ -1,6 +1,6 @@
 # ADR-004: Deploy as a single Azure Web App, without Bicep on day one
 
-**Status:** Accepted
+**Status:** Accepted, then amended by [ADR-009](ADR-009-container-deployment.md) on 2026-11-19. Still one Web App serving API and dashboard together, now as a container image built and tested in GitHub Actions instead of a zip built on a laptop.
 **Date:** 2026-11-05
 
 ## Context

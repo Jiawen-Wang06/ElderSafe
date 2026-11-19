@@ -1,0 +1,51 @@
+# Everything the image does not need is left out of the build context. That
+# keeps builds fast, and makes sure nothing local reaches a published image:
+# datasets, databases, secrets, or build output from this machine.
+
+# Version control, editors, tooling
+.git
+.github
+.vs
+.vscode
+.idea
+.claude
+CLAUDE.md
+**/*.user
+
+# Local build output; the Dockerfile builds its own
+**/bin
+**/obj
+**/publish
+**/node_modules
+**/dist
+src/ElderSafe.Api/wwwroot
+
+# Local data and databases
+**/*.db
+**/*.db-shm
+**/*.db-wal
+
+# Machine learning: datasets (licensed separately), environments, run output.
+# The trained model the API needs is under src/ElderSafe.Api/Models.
+data
+datasets
+modelTraining
+.venv-ml
+artifacts
+mlruns
+mlflow.db
+tools
+
+# Secrets, should any ever exist locally
+**/.env
+**/.env.*
+**/*.pfx
+**/*.pem
+**/local.settings.json
+**/secrets.json
+
+# Not needed at runtime
+docs
+tests
+**/*.zip
+**/*.md
