@@ -16,6 +16,12 @@ public sealed class FallDetectorOptions
     public const string SectionName = "FallDetection";
 
     /// <summary>
+    /// Which detector runs. The rule is the default; the trained model is
+    /// opt-in until its evaluation meets REQ-FALL-11.
+    /// </summary>
+    public FallDetectorKind Detector { get; set; } = FallDetectorKind.Threshold;
+
+    /// <summary>
     /// Magnitude below which the device is treated as falling freely, in g.
     /// In free fall the sensor reads close to 0 g, because it is no longer
     /// being held up against gravity.

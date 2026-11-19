@@ -14,6 +14,16 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.32.0" />
+  </ItemGroup>
+
+  <!--
+    The trained fall model, registered in Azure ML as eldersafe-fall. The Web
+    SDK treats .json as Content and .onnx as None, so each needs its own line.
+  -->
+  <ItemGroup>
+    <None Update="Models\fall\model.onnx" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="Models\fall\model.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

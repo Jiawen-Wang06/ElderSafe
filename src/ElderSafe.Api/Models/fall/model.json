@@ -1,0 +1,43 @@
+{
+  "name": "eldersafe-fall",
+  "threshold": 0.9960808442552809,
+  "feature_names": [
+    "mag_min",
+    "mag_max",
+    "mag_mean",
+    "mag_std",
+    "peak_minus_dip_s",
+    "tail_mag_mean",
+    "tail_mag_std",
+    "orientation_change_deg"
+  ],
+  "sample_rate_hz": 20,
+  "window_seconds": 4.0,
+  "input_name": "features",
+  "output_name": "probabilities",
+  "sha256": "467b5555955818f1b998a778628a6043e2f930cb503e0f6e2bb298e1444ca724",
+  "data_version": "uci-falls-waist:1,umafall:1",
+  "metrics": {
+    "threshold": 0.9960808442552809,
+    "cv_model_fall_trials": 1477,
+    "cv_model_adl_trials": 1482,
+    "cv_model_sensitivity": 0.950575490859851,
+    "cv_model_adl_trials_alerted": 0.009446693657219974,
+    "cv_model_false_alarms_per_adl_hour": 1.6932383014535306,
+    "cv_rule_fall_trials": 1477,
+    "cv_rule_adl_trials": 1482,
+    "cv_rule_sensitivity": 0.6960054163845633,
+    "cv_rule_adl_trials_alerted": 0.004723346828609987,
+    "cv_rule_false_alarms_per_adl_hour": 0.8466191507267653,
+    "external_model_fall_trials": 186,
+    "external_model_adl_trials": 424,
+    "external_model_sensitivity": 0.8548387096774194,
+    "external_model_adl_trials_alerted": 0.03773584905660377,
+    "external_model_false_alarms_per_adl_hour": 9.151209437184733,
+    "external_rule_fall_trials": 186,
+    "external_rule_adl_trials": 424,
+    "external_rule_sensitivity": 0.3118279569892473,
+    "external_rule_adl_trials_alerted": 0.01650943396226415,
+    "external_rule_false_alarms_per_adl_hour": 4.0036541287683205
+  }
+}

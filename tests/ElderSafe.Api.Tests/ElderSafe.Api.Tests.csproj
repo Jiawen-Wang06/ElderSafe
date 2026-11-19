@@ -20,6 +20,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Detection\Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ElderSafe.Api\ElderSafe.Api.csproj" />

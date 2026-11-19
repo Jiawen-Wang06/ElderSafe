@@ -29,6 +29,8 @@ builder.Services.AddDbContext<ElderSafeDbContext>(options =>
 // be tuned without a rebuild.
 builder.Services.Configure<FallDetectorOptions>(
     builder.Configuration.GetSection(FallDetectorOptions.SectionName));
+builder.Services.Configure<FallModelOptions>(
+    builder.Configuration.GetSection(FallModelOptions.SectionName));
 builder.Services.Configure<EscalationOptions>(
     builder.Configuration.GetSection(EscalationOptions.SectionName));
 builder.Services.Configure<DemoDataOptions>(
@@ -110,8 +112,18 @@ builder.Services.AddSingleton<IEmergencyDispatch, LoggingEmergencyDispatch>();
 // IOptions<T>, so they stay plain classes that a test can construct without
 // any dependency-injection ceremony.
 builder.Services.AddSingleton<IFallDetector>(provider =>
-    new ThresholdFallDetector(
-        provider.GetRequiredService<IOptions<FallDetectorOptions>>().Value));
+{
+    var detection = provider.GetRequiredService<IOptions<FallDetectorOptions>>().Value;
+
+    if (detection.Detector == FallDetectorKind.Onnx)
+    {
+        return OnnxFallDetector.Load(
+            provider.GetRequiredService<IHostEnvironment>().ContentRootPath,
+            provider.GetRequiredService<IOptions<FallModelOptions>>().Value);
+    }
+
+    return new ThresholdFallDetector(detection);
+});
 
 builder.Services.AddSingleton<IEscalationPolicy>(provider =>
     new EscalationPolicy(
@@ -167,6 +179,11 @@ builder.Services.AddHostedService<EscalationWorker>(provider =>
         provider.GetRequiredService<ILogger<EscalationWorker>>()));
 
 var app = builder.Build();
+
+// Build the detector now rather than on the first reading. A missing or
+// altered model file then stops startup, where someone will see it, instead
+// of failing inside ingestion, where a fall would go undetected.
+app.Services.GetRequiredService<IFallDetector>();
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
