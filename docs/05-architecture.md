@@ -12,9 +12,9 @@
 
 ## 1. The constraint that shapes this design
 
-This is a learning and demonstration project with a **1 to 2 day build budget**. That constraint is treated as a requirement, not an excuse, and it drives every decision below.
+This is a demonstration project with a **deliberately small footprint**. That constraint is treated as a requirement, not an excuse, and it drives every decision below.
 
-The guiding rule: **one process, one database file, no infrastructure to stand up.** Anything that requires a second service, a training pipeline or a cloud account to run locally is deferred.
+The guiding rule: **one process, one database file, no infrastructure to stand up.** Nothing a reviewer runs locally needs a second service or a cloud account. The model is trained in Azure Machine Learning but ships as a file, and the language model is optional.
 
 A reviewer should be able to clone the repository and have it running with two commands.
 
@@ -23,7 +23,7 @@ A reviewer should be able to clone the repository and have it running with two c
 | Capability | Decision | Why |
 | --- | --- | --- |
 | Fall detection | **Built**: a model trained in Azure ML, run in-process as ONNX, with the rule-based detector kept as a configured fallback | Trained on public datasets and tested on one held out. See [ADR-008](adr/ADR-008-trained-fall-model.md), which amends [ADR-002](adr/ADR-002-rule-based-detector.md) |
-| Wandering detection | **Deferred** | Specified (REQ-WANDER-01 to 07) but not implemented within the build budget; the detector sits behind the same `IFallDetector`-style seam as fall detection, so it can be added without reworking alerting or escalation |
+| Wandering detection | **Deferred** | Specified (REQ-WANDER-01 to 07) but deliberately out of scope so far; the detector sits behind the same `IFallDetector`-style seam as fall detection, so it can be added without reworking alerting or escalation |
 | Alerting, acknowledgement, escalation | **Built** | This is the core of the product and the part the risk file cares about most |
 | Emergency call | **Built**, against a simulated dispatch service | An interface and a logging implementation. Cheap, and it demonstrates the design |
 | Escalation and emergency-call configuration | **Built**, by the resident account | Escalation limit, emergency-call setting and contact number, and caregiver assignment and order (REQ-FALL-04, REQ-FALL-05, REQ-CFG-01 to 09) |
@@ -35,7 +35,7 @@ A reviewer should be able to clone the repository and have it running with two c
 | Accuracy on real falls | **Deferred** | The model is evaluated on falls simulated by volunteers ([model card](models/fall-model-card.md)), not on real falls of older people, and its false-alarm rate is above target. That evaluation is REQ-FALL-11 |
 | Showing a failed emergency call to caregivers | **Deferred** | A failed attempt is retried on every sweep and written to the audit log, but the dashboard does not show it (REQ-FALL-12) |
 | Auditing reads of resident data | **Deferred** | Acknowledgements, alert lifecycle events and configuration changes are audited; reading the alert list, summary or trace is not (REQ-SEC-05) |
-| "No data" alert | **Deferred** | Specified (REQ-SYS-01) but not implemented within the build budget |
+| "No data" alert | **Deferred** | Specified (REQ-SYS-01) but deliberately out of scope so far |
 | FHIR export | **Deferred** | Needs a HAPI FHIR server running alongside |
 | Caregiver authentication and per-resident authorization | **Built**, ASP.NET Core Identity with cookies | The data is personal health information; a stub would leave the hazard uncontrolled. See [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
 | Azure deployment | **Built**, single Linux Web App running one container image | Built and smoke-tested in GitHub Actions, published to GitHub Container Registry, pulled by the Web App. No Bicep yet. See [ADR-009](adr/ADR-009-container-deployment.md), which amends [ADR-004](adr/ADR-004-single-web-app.md) |
@@ -209,31 +209,17 @@ The earlier plan had four source projects. Two is enough, and fewer moving parts
 | Tests | xUnit, `WebApplicationFactory`, `FakeTimeProvider` | |
 | Deployment | One container image on a Linux Azure Web App, from GitHub Container Registry | [ADR-009](adr/ADR-009-container-deployment.md) |
 
-## 9. Build order
+## 9. Delivery phases
 
-**Day 1 — the alert path works end to end**
+Each phase left the system working end to end, with its requirements traced to passing tests before the next began.
 
-| Step | Output |
+| Phase | Delivered |
 | --- | --- |
-| 1 | Solution, two projects, EF Core model with Identity, migration, seeded caregivers and residents |
-| 2 | `FallDetector` with unit tests tagged REQ-FALL-01 |
-| 3 | `GeofenceEvaluator` with unit tests tagged REQ-WANDER-01 |
-| 4 | `AlertService` with escalation, unit tests on a fake clock, tagged REQ-FALL-03 and REQ-WANDER-03 |
-| 5 | Readings endpoint, SignalR hub, simulator with three scenarios |
-
-**Day 2 — a person can see and use it**
-
-| Step | Output |
-| --- | --- |
-| 6 | Authentication: Identity with cookies, sign-in screen, `[Authorize]` on every resident endpoint, authorization guard and its tests (REQ-SEC-01, REQ-SEC-02, REQ-SEC-03) |
-| 6b | React dashboard: sign in, open alerts, acknowledge, "simulate a fall" button |
-| 7 | `LoggingDispatch` and its integration test (REQ-FALL-06) |
-| 8 | Shift summary: grounded prompt, template generator, `SummaryValidator` with unit tests (REQ-AI-01, REQ-AI-02) |
-| 9 | CI workflow: build, test, run the traceability check |
-| 10 | Deploy to Azure, README with a GIF, release v0.1 |
-| 11 | Resident settings screen: safe zone, escalation limit, emergency-call toggle (REQ-FALL-04, 05, REQ-WANDER-07) |
-
-Authentication added roughly two to three hours to day 2, taken from the settings screen. Steps 9 and 10 matter more to a reviewer than step 11, so the settings screen is last and may be configured through seeded data until there is time for it. Step 8's validator tests are cheap and distinctive, so they stay ahead of it.
+| 1. Alert path | Solution and EF Core model with Identity; rule-based `ThresholdFallDetector` (REQ-FALL-01); `AlertService` with escalation tested on a fake clock (REQ-FALL-03); readings endpoint, SignalR hub and in-process simulator; simulated emergency dispatch (REQ-FALL-06) |
+| 2. Usable and verifiable | Cookie authentication and per-resident authorization (REQ-SEC-01 to 04); React dashboard with acknowledgement, alert trace and summary views; resident configuration (REQ-CFG-01 to 09); CI with lint, tests and the traceability gate; first Azure deployment |
+| 3. Trained detector | Datasets profiled and licensed; LightGBM trained in Azure Machine Learning with subject-wise validation and an external test set; ONNX in-process with hash and parity checks ([ADR-008](adr/ADR-008-trained-fall-model.md)) |
+| 4. AI shift summary | Grounded generation with Azure OpenAI in Microsoft Foundry, a validator and a template fallback, plus a live evaluation that changed the prompt ([ADR-005](adr/ADR-005-grounded-llm-summary.md)) |
+| 5. Container delivery | Docker image built, smoke-tested and published by CI, and run on a Linux Web App ([ADR-009](adr/ADR-009-container-deployment.md)) |
 
 ## 10. What this design gives up
 
@@ -251,16 +237,17 @@ Stated plainly, because a reviewer will spot it anyway:
 - **A failed emergency call is not shown to caregivers.** It is retried on every sweep and written to the audit log, but nobody watching the dashboard learns that the last safety net failed (REQ-FALL-12, deferred).
 - **Reads are not audited.** The audit log records who acknowledged an alert and who changed configuration, but not who looked at a resident's alerts, summary or sensor trace (REQ-SEC-05, deferred).
 
-Each of these is a deliberate trade against the two-day budget, and each is recorded as future work in the README.
+Each of these is a deliberate scope trade, and each is recorded as future work in the README.
 
 ## 11. Revision history
 
 | Version | Date | Change |
 | --- | --- | --- |
-| 0.1 | 2026-11-05 | First draft, scoped to a 1 to 2 day build |
+| 0.1 | 2026-11-05 | First draft |
 | 0.2 | 2026-11-06 | Scope table corrected: wandering detection, the shift summary and Azure deployment were marked **Built** since the first draft but were never implemented or performed. Marked **Deferred**, matching [04-software-requirements.md](04-software-requirements.md) |
 | 0.3 | 2026-11-06 | Azure deployment marked **Built**: deployed manually to a single free-tier Web App |
 | 0.4 | 2026-11-09 | Scope table: safe-zone configuration marked **Deferred** (it had been listed as built with escalation settings); deferred rows added for measured accuracy (REQ-FALL-11), showing a failed emergency call (REQ-FALL-12), auditing reads (REQ-SEC-05) and the "no data" alert (REQ-SYS-01). `AuditLog` row corrected: reads were never recorded. Section 10's shift-summary bullet corrected: it described the summary as shipping, but nothing of it is built |
 | 0.5 | 2026-11-18 | Fall detection by a model trained in Azure ML and run in-process as ONNX ([ADR-008](adr/ADR-008-trained-fall-model.md)). Scope table, component table, detector section, alert flow (the window is 4 s and goes through `AlertService`, not the controller) and section 10 updated. The rules stay as a configured fallback |
 | 0.6 | 2026-11-18 | Shift summary built ([ADR-005](adr/ADR-005-grounded-llm-summary.md)): scope table, component table, summary section and section 10 updated |
 | 0.7 | 2026-11-19 | Deployment as a container image ([ADR-009](adr/ADR-009-container-deployment.md)): scope and technology tables updated |
+| 0.8 | 2026-11-19 | Section 1 restates the constraint as a small footprint. Section 9 replaces the original build plan, which described steps never taken, with the delivery phases as they happened |

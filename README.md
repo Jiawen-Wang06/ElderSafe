@@ -2,107 +2,79 @@
   <img src="docs/media/headerImg.png" alt="ElderSafe" width="100%">
 </p>
 
-**Fall detection for older adults and their caregivers.**
+| | |
+| --- | --- |
+| **Backend** | ![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white) ![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-SignalR%20%C2%B7%20Identity-512BD4?logo=dotnet&logoColor=white) ![SQLite](https://img.shields.io/badge/SQLite-EF%20Core-003B57?logo=sqlite&logoColor=white) |
+| **Frontend** | ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind%204-shadcn%2Fui-06B6D4?logo=tailwindcss&logoColor=white) |
+| **ML** | ![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white) ![LightGBM](https://img.shields.io/badge/LightGBM-classifier-2E7D32) ![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-in--process-005CED?logo=onnx&logoColor=white) ![Azure Machine Learning](https://img.shields.io/badge/Azure%20Machine%20Learning-model%20training%20%C2%B7%20registry-0078D4) ![MLflow](https://img.shields.io/badge/MLflow-tracking-0194E2?logo=mlflow&logoColor=white) |
+| **LLM** | ![Microsoft Foundry](https://img.shields.io/badge/Microsoft%20Foundry-LLM%20shift%20summary-0078D4) ![Azure OpenAI](https://img.shields.io/badge/Azure%20OpenAI-GPT--4.1--mini-412991) |
+| **Delivery** | ![Docker](https://img.shields.io/badge/Docker-GHCR-2496ED?logo=docker&logoColor=white) ![Azure App Service](https://img.shields.io/badge/Azure-App%20Service-0078D4) ![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white) |
+| **Quality** | ![xUnit](https://img.shields.io/badge/xUnit-187%20tests-512BD4) ![Vitest](https://img.shields.io/badge/Vitest-71%20tests-6E9F18?logo=vitest&logoColor=white) ![IEC 62304](https://img.shields.io/badge/IEC%2062304-Class%20C%20framing-B71C1C) |
 
-> **Portfolio project. Not a medical device. Synthetic data only.**
+**Fall detection for older adults: a trained model decides, caregivers are alerted live, and unanswered alerts escalate.**
 
-ElderSafe alerts a caregiver when a monitored older adult may have fallen. A simulated wearable streams accelerometer data, a detector decides whether a fall happened, and a React dashboard shows live alerts that caregivers acknowledge. Unacknowledged alerts escalate through the assigned caregivers, and can end in a simulated emergency call. A resident account configures who is assigned, in what order, and how escalation and the emergency call behave.
+> Portfolio project, built as if for a regulated medical domain. **Not a medical device. Public and synthetic data only.**
 
-A caregiver can also ask for a short handover summary of a resident's last shift. It is written by an Azure OpenAI model, or by a template when no model is configured, and is checked against the stored alerts before it is shown.
-
-Wandering (leaving a safe zone) detection and a "no data" alert for a silent device are designed and documented but not yet built — see [Not built yet](#not-built-yet).
-
-I built it to show how I work on software in a regulated domain: requirements traced to hazards and tests, automated testing, and a CI pipeline that fails on traceability gaps.
+**[Live demo](https://eldersafe-dtc4hucbascmcgd8.canadaeast-01.azurewebsites.net)**: sign in as `demo.caregiver@example.invalid` / `Demo-Passw0rd!`, press **Simulate fall**, and watch the alert arrive, escalate and get acknowledged. The first request after a quiet period may take a few seconds.
 
 ![ElderSafe demo: simulating a fall, acknowledging it, and viewing the summary](docs/media/demo.gif)
 
-**Live demo:** [eldersafe-dtc4hucbascmcgd8.canadaeast-01.azurewebsites.net](https://eldersafe-dtc4hucbascmcgd8.canadaeast-01.azurewebsites.net) — sign in with `demo.caregiver@example.invalid` / `Demo-Passw0rd!` (see [Run it locally](#run-it-locally) for the full account list). It's on Azure's free tier, so the first request after a quiet period can take a few seconds to wake up.
+## Highlights
 
-## Status
+- **An ML model taken from public data to production.** A LightGBM fall classifier trained as an **Azure Machine Learning** job on the UCI Simulated Falls dataset (tracked with MLflow, registered in the Azure ML model registry), with subject-wise cross-validation, then tested on UMAFall, a dataset it never saw.
+  - **85% of held-out falls detected, against 31%** for the hand-tuned rules it replaced.
+  - Exported to ONNX and run in-process in .NET, so detection never waits on a network call.
+  - SHA-256 checked at startup, and the model version recorded in every alert's audit entry.
+  - A parity test holds the Python and C# feature code to the same output.
+  - → [ADR-008](docs/adr/ADR-008-trained-fall-model.md), [model card](docs/models/fall-model-card.md)
+- **An LLM feature that treats model output as untrusted.** Shift-handover summaries from **Azure OpenAI (GPT-4.1-mini, deployed in Microsoft Foundry)** are grounded in stored alerts only. A validator withholds any summary that invents or omits an escalated alert, and the app falls back to a template when the model is rate-limited or down.
+  - A live evaluation found prompt v1 passed validation but hid unacknowledged alerts. Prompt v2 fixed it, and the results are recorded.
+  - → [ADR-005](docs/adr/ADR-005-grounded-llm-summary.md)
+- **Regulated-domain engineering.**
+  - IEC 62304 Class C framing.
+  - **22 hazards** scored before and after controls.
+  - **37 requirements** traced to user needs, hazards and tests.
+  - A CI gate that **fails the build when any requirement has no passing test** and isn't explicitly deferred with a reason.
+  - → [risk file](docs/02-risk-management.md), [traceability matrix](docs/traceability.md)
+- **Shipped like production software.**
+  - **187 backend + 71 frontend tests.**
+  - A Docker image that CI **starts and smoke-tests**, including a simulated fall, before publishing it to GHCR for Azure App Service.
+  - Relationship-based authorization: answers 404, never 403, for another resident's data.
+  - Secrets kept out of the repository. The full history is scanned.
+  - → [ADR-009](docs/adr/ADR-009-container-deployment.md)
 
-Documentation first, then a two-day build. The design is deliberately small, and [the architecture document](docs/05-architecture.md) says what was cut and why.
-
-## How to read this repository
-
-The code is the smaller half of the point. These documents are the other half:
-
-| Document | What it shows |
-| --- | --- |
-| [Intended use and classification](docs/01-intended-use.md) | What the product is for, and why it is IEC 62304 Class C rather than A or B |
-| [Risk management](docs/02-risk-management.md) | 22 hazards scored before and after controls, with residual risk stated honestly |
-| [User needs](docs/03-user-needs.md) | Findings from an interview with a registered nurse, and the needs they validated |
-| [Software requirements](docs/04-software-requirements.md) | 37 requirements, each traced to a user need and, where it controls one, a hazard; 14 are deferred, each with a recorded reason, rather than hidden |
-| [Architecture and ADRs](docs/05-architecture.md) | The design, and nine decision records covering what was traded away |
-| [Fall model card](docs/models/fall-model-card.md) | The trained detector: data, licences, features, held-out results against the rules, and limitations |
-| [SOUP list](docs/06-soup.md) | Third-party software the product runs on, and how reliance on the detection path is checked |
-| [Traceability matrix](docs/traceability.md) | Generated from test results by `tools/generate_traceability.py`, and regenerated by CI on every run. Shows deferred requirements rather than hiding them |
-
-Four things worth a look if you are short of time:
-
-- **Why Class C** ([intended use](docs/01-intended-use.md) section 7) — including why the obvious arguments for Class A and Class B do not hold.
-- **Residual risk** ([risk management](docs/02-risk-management.md) section 4) — the part where the design admits what it cannot do.
-- **ADR-008** ([trained fall model](docs/adr/ADR-008-trained-fall-model.md)) — a model trained in Azure ML on public datasets, tested on one it never saw, and run in-process as ONNX rather than behind an endpoint. It amends [ADR-002](docs/adr/ADR-002-rule-based-detector.md), which explains why the first build had no model at all.
-- **ADR-005** ([grounded shift summary](docs/adr/ADR-005-grounded-llm-summary.md)) — an Azure OpenAI summary treated as untrusted input: built only from stored alerts, checked by a validator before display, and withheld when it fails. The validator needs no API key, so it is tested in CI.
-
-## Design
-
-One ASP.NET Core process holds the API, the detectors, the alerting logic and an in-process device simulator. A React dashboard talks to it over SignalR. Data lives in a SQLite file.
-
-| Area | Choice | Why |
-| --- | --- | --- |
-| API | ASP.NET Core, .NET 10 | |
-| Dashboard | React 19 + TypeScript + Vite | |
-| Live updates | SignalR | |
-| Database | SQLite via EF Core | [ADR-001](docs/adr/ADR-001-sqlite-over-postgres.md) |
-| Fall detection | LightGBM trained in Azure ML, run in-process with ONNX Runtime; threshold rules as a fallback | [ADR-008](docs/adr/ADR-008-trained-fall-model.md) |
-| Device data | In-process simulator with named scenarios | [ADR-003](docs/adr/ADR-003-in-process-simulator.md) |
-| Shift summary | Azure OpenAI (gpt-4.1-mini in Microsoft Foundry) or a template, validated before display | [ADR-005](docs/adr/ADR-005-grounded-llm-summary.md) |
-| Authentication | ASP.NET Core Identity, cookie-based | [ADR-006](docs/adr/ADR-006-identity-cookie-auth.md) |
-| Tests | xUnit, `WebApplicationFactory`, `FakeTimeProvider`; Vitest for the dashboard | |
-| CI/CD | GitHub Actions | |
-| Hosting | One container image on a Linux Azure Web App, built and tested in GitHub Actions | [ADR-009](docs/adr/ADR-009-container-deployment.md) |
-
-## Repository layout
+## How it works
 
 ```
-ElderSafe/
-├─ src/
-│  ├─ ElderSafe.Api/         API, detectors, alerting, SignalR, simulator
-│  └─ ElderSafe.Dashboard/   React + TypeScript caregiver dashboard
-├─ tests/
-│  └─ ElderSafe.Api.Tests/   unit and integration tests, named by requirement
-├─ tools/
-│  └─ generate_traceability.py
-├─ docs/                     intended use, risk, requirements, architecture, ADRs
-└─ .github/                  workflows, pull request template, issue templates
+Wearable (simulated) ──readings──▶ ASP.NET Core API ──SignalR──▶ React dashboard
+                                     │
+                    4 s window ──▶ IFallDetector ── ONNX model (default) | threshold rules
+                                     │ fall
+                                     ▼
+                     Alert ─▶ escalate through caregivers every 2 min ─▶ simulated emergency call
+                                     │
+                     Shift summary ─▶ Azure OpenAI or template ─▶ validator ─▶ shown or withheld
 ```
+
+One process, one SQLite file, one container. Domain decisions such as detection and escalation are pure classes behind interfaces, and side effects go through ports. Emergency calls are **simulated**: nothing in the system can place a real call.
 
 ## Run it locally
 
 Requires the .NET 10 SDK and Node 22+.
 
 ```bash
-# API, demo data, and the in-process device simulator
-cd src/ElderSafe.Api
-dotnet run
-
-# Dashboard, in a second terminal
-cd src/ElderSafe.Dashboard
-npm install
-npm run dev
+cd src/ElderSafe.Api && dotnet run            # API on :5134, seeds demo data
+cd src/ElderSafe.Dashboard && npm install && npm run dev   # dashboard on :5173
 ```
 
-The dashboard runs at `http://localhost:5173` and proxies `/api` and `/hubs` to the API at `http://localhost:5134`. Sign in with one of the seeded demo accounts (password `Demo-Passw0rd!`):
+Or run the deployed image: `docker run -p 8080:8080 -e DemoData__Enabled=true -e Simulation__Enabled=true ghcr.io/jiawen-wang06/eldersafe:latest`
 
-| Account | Role |
-| --- | --- |
-| `demo.caregiver@example.invalid` | Caregiver, first in the escalation order |
-| `demo.nurse@example.invalid` | Caregiver, second in the escalation order |
-| `demo.resident@example.invalid` | Resident, configures caregivers and escalation |
+Demo accounts (password `Demo-Passw0rd!`): `demo.caregiver@example.invalid` and `demo.nurse@example.invalid`, the caregivers in escalation order, and `demo.resident@example.invalid`, who configures them.
 
-### Optional: AI shift summaries
+<details>
+<summary>Optional: turn on AI shift summaries</summary>
 
-Without any setup, the Summary tab's **Shift handover** card writes summaries from a template. To have an Azure OpenAI deployment write them instead, store its details as user secrets. They stay outside the repository:
+Without setup, summaries come from a template. To use an Azure OpenAI deployment instead, store its details as user secrets (in Azure, as App Service settings with `__` in place of `:`):
 
 ```bash
 cd src/ElderSafe.Api
@@ -110,44 +82,46 @@ dotnet user-secrets set "ShiftSummary:AzureOpenAI:Endpoint" "https://<your-resou
 dotnet user-secrets set "ShiftSummary:AzureOpenAI:Deployment" "<your-deployment-name>"
 dotnet user-secrets set "ShiftSummary:AzureOpenAI:ApiKey" "<your-key>"
 ```
+</details>
 
-In Azure App Service, set the same values as application settings, with `__` in place of `:`.
+## Documentation
 
-### Run the container
+| Document | What it shows |
+| --- | --- |
+| [Intended use](docs/01-intended-use.md) | Why the software is IEC 62304 Class C rather than A or B |
+| [Risk management](docs/02-risk-management.md) | 22 hazards, controls, and residual risk stated honestly |
+| [User needs](docs/03-user-needs.md) | Findings from an interview with a registered nurse |
+| [Requirements](docs/04-software-requirements.md) | 37 requirements; 12 deferred, each with a recorded reason |
+| [Architecture](docs/05-architecture.md) and [ADRs](docs/adr/) | The design, and 9 decision records covering what was traded away |
+| [Fall model card](docs/models/fall-model-card.md) | Data, licences, features, held-out results and limitations |
+| [SOUP list](docs/06-soup.md) | Third-party software and how reliance on it is checked |
+| [Traceability matrix](docs/traceability.md) | Generated from test results by CI on every run |
 
-The image that is deployed can be run locally too (requires Docker):
+## Known limitations
 
-```bash
-docker build -t eldersafe .
-docker run -p 8080:8080 -e DemoData__Enabled=true -e Simulation__Enabled=true eldersafe
-```
+Each limitation is stated in the docs rather than hidden:
+- **No accuracy claim for real falls.** Every fall in the training and test data was simulated by a young adult, and the false-alarm rate is above any product target, so REQ-FALL-11 stays deferred.
+- **Alerts reach the dashboard only.** There's no push or SMS, which makes this the largest residual risk ([ADR-007](docs/adr/ADR-007-dashboard-only-notification.md)).
+- **Data resets when the container restarts,** because SQLite lives inside the container. There's no staging slot or Bicep yet.
+- **Not built yet:** wandering detection, the "no data" alert, a device-pairing flow and FHIR export. All are specified, traced and marked deferred.
 
-Then open `http://localhost:8080`. Every merge to `main` publishes the image as `ghcr.io/jiawen-wang06/eldersafe:latest`, after it has been started and smoke-tested in CI ([ADR-009](docs/adr/ADR-009-container-deployment.md)).
+## Datasets and credit
 
-From a caregiver's Alerts tab, use the Simulate card to send a fall or ordinary movement, varied on every press within ranges measured from recorded data, and watch a fall arrive, get acknowledged, and show up in the Summary tab.
+The fall model exists because these research groups published their data. Thank you.
 
-## Not built yet
+| Dataset | Used for | Licence |
+| --- | --- | --- |
+| **Simulated Falls and Daily Living Activities**: A. T. Özdemir and B. Barshan, Bilkent University. [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/455/simulated+falls+and+daily+living+activities+data+set), [doi:10.24432/C52028](https://doi.org/10.24432/C52028). Paper: *Detecting Falls with Wearable Sensors Using Machine Learning Techniques*, Sensors 14(6), 2014 ([PMC4118339](https://pmc.ncbi.nlm.nih.gov/articles/PMC4118339)) | Training and cross-validation | CC BY 4.0 |
+| **UMAFall**: E. Casilari and J. A. Santoyo-Ramón, University of Málaga. [figshare, doi:10.6084/m9.figshare.4214283](https://doi.org/10.6084/m9.figshare.4214283). Paper: *UMAFall: A Multisensor Dataset for the Research on Automatic Fall Detection*, Procedia Computer Science 110, 2017 | Held-out external test only | CC BY-NC 4.0 |
 
-Deliberate omissions, each with a reason in the architecture document:
-
-- **No wandering (safe-zone) detection.** REQ-WANDER-01 to 07 are specified and traced to hazards, but not implemented within the build budget. The fall detector sits behind an interface for exactly this reason — a second detector can be added without reworking alerting or escalation.
-- **No "no data" alert.** REQ-SYS-01 (alerting when a resident's device goes silent) is specified but not implemented.
-- **No accuracy on real falls.** The model found 85% of falls in a held-out dataset, against 31% for the rules, but every fall in both datasets was simulated by a young adult, and its false-alarm rate is above any product target ([model card](docs/models/fall-model-card.md)). REQ-FALL-11 stays deferred.
-- **A failed emergency call is not shown to caregivers.** It is retried on every sweep and written to the audit log, but not shown on the dashboard (REQ-FALL-12, deferred).
-- **Reads are not audited.** Acknowledgements, alert events and configuration changes are in the audit log; who viewed a resident's alerts, summary or sensor trace is not (REQ-SEC-05, deferred).
-- **Passwords are stored in the app's own database**, hashed by Identity. A real deployment should hand sign-on to Entra ID ([ADR-006](docs/adr/ADR-006-identity-cookie-auth.md)).
-- **Alerts reach the dashboard only.** There is no push notification, SMS or call, so a caregiver who is not signed in is not told. Escalation still runs server-side and an emergency call still follows an exhausted chain, but this is the project's largest residual risk ([ADR-007](docs/adr/ADR-007-dashboard-only-notification.md)).
-- **No device pairing flow.** Devices authenticate and are bound to a resident, but pairing is seeded. Creating and revoking pairings needs an administrator role that does not exist yet.
-- **No FHIR export.** Needs a FHIR server running alongside.
-- **No staging slot or infrastructure as code.** The image is built and smoke-tested in CI, but the Web App and its settings were set up in the portal and a release goes straight to production ([ADR-009](docs/adr/ADR-009-container-deployment.md)). The data resets whenever the container restarts. A staging slot with a gate, and Bicep, are the next piece of work.
+Neither dataset is redistributed in this repository. Only the waist-sensor recordings were used, and the volunteers' personal-information files were never extracted. See the [model card](docs/models/fall-model-card.md).
 
 ## Working agreements
 
-- `main` is protected: changes arrive through pull requests with passing checks.
-- Pull request titles follow [Conventional Commits](https://www.conventionalcommits.org/), for example `feat(alerts): escalate after 2 minutes`.
-- Each pull request lists the requirement IDs it touches, the tests added and its risk impact.
-- Tests carry their requirement ID in their name. CI regenerates the traceability matrix from the test results and fails if any requirement is neither verified by a passing test nor marked deferred with a reason.
+- `main` is protected, and every change goes through a pull request.
+- PR titles follow Conventional Commits.
+- Every test carries its requirement ID, which is what lets CI regenerate the traceability matrix.
 
 ## License
 
-All rights reserved. See [LICENSE](LICENSE) — this repository is public for review, not for reuse.
+All rights reserved. See [LICENSE](LICENSE). This repository is public for review, not for reuse.

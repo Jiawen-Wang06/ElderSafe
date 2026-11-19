@@ -22,8 +22,8 @@ A "fall" here means the wearer fell and stayed down. Falls the volunteer recover
 
 | Dataset | Role | Wearers | Recordings used | Licence and citation |
 | --- | --- | --- | --- | --- |
-| UCI *Simulated Falls and Daily Living Activities*, waist sensor (Xsens MTw, 25 Hz) | Training, subject-wise cross-validation, threshold choice | 17 volunteers | 1,477 falls, 1,482 daily activities | CC BY 4.0. Özdemir, A. T. and Barshan, B. (2014). *Detecting falls with wearable sensors using machine learning techniques.* Sensors 14(6), 10691–10708 |
-| UMAFall, waist sensor (about 20 Hz) | External test only | 18 volunteers with waist data | 186 falls, 424 daily activities | CC BY-NC 4.0. Casilari, E. and Santoyo-Ramón, J. A. (2018). *UMAFall: Fall detection dataset.* figshare |
+| UCI *Simulated Falls and Daily Living Activities*, waist sensor (Xsens MTw, 25 Hz) | Training, subject-wise cross-validation, threshold choice | 17 volunteers | 1,477 falls, 1,482 daily activities | CC BY 4.0. Özdemir, A. T. and Barshan, B. (2014). *Detecting falls with wearable sensors using machine learning techniques.* Sensors 14(6), 10691–10708 ([PMC4118339](https://pmc.ncbi.nlm.nih.gov/articles/PMC4118339)). Data: [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/455/simulated+falls+and+daily+living+activities+data+set), [doi:10.24432/C52028](https://doi.org/10.24432/C52028) |
+| UMAFall, waist sensor (about 20 Hz) | External test only | 18 volunteers with waist data | 186 falls, 424 daily activities | CC BY-NC 4.0. Casilari, E. and Santoyo-Ramón, J. A. *UMAFall: Fall detection dataset.* figshare, [doi:10.6084/m9.figshare.4214283](https://doi.org/10.6084/m9.figshare.4214283). Described in *UMAFall: A Multisensor Dataset for the Research on Automatic Fall Detection*, Procedia Computer Science 110 (2017), 32–39 |
 
 **Preparation:**
 - Both datasets are converted to g and resampled to 20 Hz, the rate the simulator and a wearable would send.
@@ -95,3 +95,4 @@ Per recording, with windows slid every 0.25 s, as the API sees them. The same ev
 | Version | Date | Change |
 | --- | --- | --- |
 | 1 | 2026-11-18 | First model: LightGBM on UCI waist data, tested on UMAFall |
+| 1.1 | 2026-11-19 | Dataset citations linked to their sources (UCI repository and DOI, figshare DOI, papers) |

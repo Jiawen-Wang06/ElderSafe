@@ -1,4 +1,4 @@
-# ADR-004: Deploy as a single Azure Web App, without Bicep on day one
+# ADR-004: Deploy as a single Azure Web App, without Bicep at first
 
 **Status:** Accepted, then amended by [ADR-009](ADR-009-container-deployment.md) on 2026-11-19. Still one Web App serving API and dashboard together, now as a container image built and tested in GitHub Actions instead of a zip built on a laptop.
 **Date:** 2026-11-05
@@ -11,7 +11,7 @@ The original plan had Bicep templates building an App Service plan, a staging sl
 
 ## Options
 
-1. **Full Bicep environment with slots and a gated pipeline** — demonstrates infrastructure as code properly, but consumes most of the build budget and costs money to keep running.
+1. **Full Bicep environment with slots and a gated pipeline** — demonstrates infrastructure as code properly, but is a substantial piece of work before the application itself exists, and costs money to keep running.
 2. **Single Web App, deployed with `az webapp up`** — a live URL within minutes, free tier, nothing else to provision.
 3. **No deployment, screenshots only** — cheapest, and it loses the most valuable thing the project has.
 

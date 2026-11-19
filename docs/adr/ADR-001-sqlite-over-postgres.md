@@ -7,7 +7,7 @@
 
 ElderSafe stores residents, caregivers, readings, alerts and an audit log. The original plan named PostgreSQL, which is the right choice for a real deployment: concurrent writers, durability, and the operational tooling a care provider would expect.
 
-The build budget for this project is one to two days. PostgreSQL costs a Docker Compose file, a container that must be running before anything works, connection strings in two environments, and a managed Azure instance to deploy against.
+The project keeps its footprint deliberately small: one process, nothing else to stand up. PostgreSQL costs a Docker Compose file, a container that must be running before anything works, connection strings in two environments, and a managed Azure instance to deploy against.
 
 A reviewer who cannot run the project in under a minute will not run it at all.
 
