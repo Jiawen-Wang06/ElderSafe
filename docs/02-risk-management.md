@@ -128,7 +128,7 @@ ISO 14971 asks whether a control creates a new hazard. Two here do:
 - The pull request template asks whether a change affects this file.
 - A new hazard found during development is added here before the fix is merged.
 - Anomaly reports record which RISK-ID they touch.
-- Probability estimates are reviewed when real evaluation results replace the placeholder targets.
+- Probability estimates are reviewed when an evaluation on real falls replaces the provisional targets (REQ-FALL-11). The current evaluation, on falls simulated by volunteers, does not justify changing them.
 
 ## 7. Revision history
 
@@ -147,3 +147,4 @@ ISO 14971 asks whether a control creates a new hazard. Two here do:
 | 1.1 | 2026-11-09 | Controls re-pointed to what is built. The sensitivity and false-alarm targets (RISK-01, RISK-02, RISK-09) now cite REQ-FALL-11, deferred; showing a failed emergency call to caregivers (RISK-11) cites REQ-FALL-12, deferred; auditing views (RISK-12, RISK-14) cites REQ-SEC-05, deferred; health checks on the alerting path (RISK-08) marked not built. Residual scores unchanged, with a note in section 4 that they describe the design and are not yet achieved by the build |
 | 1.2 | 2026-11-18 | Detection by a trained model ([ADR-008](adr/ADR-008-trained-fall-model.md)). RISK-01's cause names the training data's limitation, and its controls cite the held-out evaluation. RISK-02 records that the model's false-alarm rate is higher than the rules', and that the alert trace now names the detector. RISK-20 (training-serving skew) and RISK-21 (an unevaluated model running) added, each controlled at startup and by test. Residual scores for RISK-01 and RISK-02 unchanged: the evaluation is on falls simulated by young adults, not real falls of older people, so it does not justify lowering either |
 | 1.3 | 2026-11-18 | Shift summary built ([ADR-005](adr/ADR-005-grounded-llm-summary.md)). RISK-13's controls now cite what is implemented, including the residual it cannot catch. RISK-22 added: alerts sent to an external language model, controlled by sending no names or stored identifiers |
+| 1.4 | 2026-11-19 | Section 6 updated: probability estimates are reviewed against an evaluation on real falls, not the current evaluation on simulated ones |
