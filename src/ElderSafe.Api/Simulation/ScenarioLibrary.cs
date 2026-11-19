@@ -13,6 +13,21 @@ namespace ElderSafe.Api.Simulation;
 /// Sharing the fixtures means the two cannot drift.
 /// </para>
 /// <para>
+/// The fall uses values measured from recorded data rather than values chosen
+/// to clear a detector's thresholds. Across the falls in the UCI Simulated
+/// Falls and UMAFall datasets (waist sensor), the median lowest magnitude is
+/// 0.20 to 0.33 g and the median peak is 3.8 to 4.2 g, and the wearer ends
+/// lying down, so gravity moves to a different axis. An earlier version
+/// dipped only to 0.4 g, peaked at 3.0 g and never changed orientation:
+/// milder than nearly every recorded fall, which made the demo describe a
+/// fall no real resident produces.
+/// </para>
+/// <para>
+/// Every scenario lasts the full detection window (4 s at 20 Hz, matching
+/// <c>Alerting:DetectionWindow</c>), so a detector sees as much data as it
+/// would from a wearable that had been streaming all along.
+/// </para>
+/// <para>
 /// Readings carry realistic timestamps and are produced in one batch. The
 /// detector works from the timestamps rather than from when data arrives, so
 /// pacing the replay in real time would change how the demo looks and not
@@ -55,17 +70,18 @@ public static class ScenarioLibrary
             return false;
         }
 
-        // The last reading lands just before the end of the window, so the
-        // whole sequence sits inside the detector's look-back.
+        // The first reading lands exactly at the start of the detection
+        // window and the last one just before its end, so the whole sequence
+        // sits inside the detector's look-back.
         var start = endingAt
             - TimeSpan.FromSeconds(shape.Count * SampleIntervalSeconds);
 
         readings = shape
-            .Select((magnitudeG, index) => new IncomingReading(
+            .Select((sample, index) => new IncomingReading(
                 At: start + TimeSpan.FromSeconds(index * SampleIntervalSeconds),
-                AccelerationX: 0,
-                AccelerationY: 0,
-                AccelerationZ: magnitudeG,
+                AccelerationX: sample.X,
+                AccelerationY: sample.Y,
+                AccelerationZ: sample.Z,
                 Latitude: null,
                 Longitude: null,
                 AccuracyMeters: null))
@@ -74,34 +90,42 @@ public static class ScenarioLibrary
         return true;
     }
 
-    private static List<double> BuildFall()
+    private static List<Axes> BuildFall()
     {
-        var shape = new List<double>();
+        var shape = new List<Axes>();
 
-        Hold(shape, seconds: 0.5, magnitudeG: 1.0);
-        Hold(shape, seconds: 0.3, magnitudeG: 0.4);
-        shape.Add(3.0);
-        Hold(shape, seconds: 2.6, magnitudeG: 1.0);
+        // Standing: gravity along the body's vertical axis.
+        Hold(shape, seconds: 1.0, new Axes(0, 0, 1.0));
+
+        // Free fall, then the impact.
+        Hold(shape, seconds: 0.4, new Axes(0, 0, 0.2));
+        shape.Add(new Axes(0, 0, 4.0));
+
+        // Lying still on the floor: gravity now along a horizontal axis.
+        Hold(shape, seconds: 2.55, new Axes(1.0, 0, 0));
 
         return shape;
     }
 
-    private static List<double> BuildOrdinaryMovement()
+    private static List<Axes> BuildOrdinaryMovement()
     {
-        var shape = new List<double>();
+        var shape = new List<Axes>();
 
-        Hold(shape, seconds: 3.9, magnitudeG: 1.3);
+        Hold(shape, seconds: 4.0, new Axes(0, 0, 1.3));
 
         return shape;
     }
 
-    private static void Hold(List<double> shape, double seconds, double magnitudeG)
+    private static void Hold(List<Axes> shape, double seconds, Axes sample)
     {
         var count = (int)Math.Round(seconds / SampleIntervalSeconds);
 
         for (var i = 0; i < count; i++)
         {
-            shape.Add(magnitudeG);
+            shape.Add(sample);
         }
     }
+
+    /// <summary>One accelerometer sample, in g.</summary>
+    private readonly record struct Axes(double X, double Y, double Z);
 }
