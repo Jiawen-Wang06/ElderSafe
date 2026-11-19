@@ -16,10 +16,11 @@ public sealed class FallDetectorOptions
     public const string SectionName = "FallDetection";
 
     /// <summary>
-    /// Which detector runs. The rule is the default; the trained model is
-    /// opt-in until its evaluation meets REQ-FALL-11.
+    /// Which detector runs. The trained model is the default (ADR-008): on
+    /// held-out data it detects far more falls than the rule. The rule stays
+    /// selectable as a fallback.
     /// </summary>
-    public FallDetectorKind Detector { get; set; } = FallDetectorKind.Threshold;
+    public FallDetectorKind Detector { get; set; } = FallDetectorKind.Onnx;
 
     /// <summary>
     /// Magnitude below which the device is treated as falling freely, in g.
