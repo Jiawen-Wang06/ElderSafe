@@ -8,7 +8,9 @@
 
 ElderSafe alerts a caregiver when a monitored older adult may have fallen. A simulated wearable streams accelerometer data, a detector decides whether a fall happened, and a React dashboard shows live alerts that caregivers acknowledge. Unacknowledged alerts escalate through the assigned caregivers, and can end in a simulated emergency call. A resident account configures who is assigned, in what order, and how escalation and the emergency call behave.
 
-Wandering (leaving a safe zone) detection, a "no data" alert for a silent device, and an AI-generated shift summary are designed and documented but not yet built — see [Not built yet](#not-built-yet).
+A caregiver can also ask for a short handover summary of a resident's last shift. It is written by an Azure OpenAI model, or by a template when no model is configured, and is checked against the stored alerts before it is shown.
+
+Wandering (leaving a safe zone) detection and a "no data" alert for a silent device are designed and documented but not yet built — see [Not built yet](#not-built-yet).
 
 I built it to show how I work on software in a regulated domain: requirements traced to hazards and tests, automated testing, and a CI pipeline that fails on traceability gaps.
 
@@ -27,7 +29,7 @@ The code is the smaller half of the point. These documents are the other half:
 | Document | What it shows |
 | --- | --- |
 | [Intended use and classification](docs/01-intended-use.md) | What the product is for, and why it is IEC 62304 Class C rather than A or B |
-| [Risk management](docs/02-risk-management.md) | 21 hazards scored before and after controls, with residual risk stated honestly |
+| [Risk management](docs/02-risk-management.md) | 22 hazards scored before and after controls, with residual risk stated honestly |
 | [User needs](docs/03-user-needs.md) | Findings from an interview with a registered nurse, and the needs they validated |
 | [Software requirements](docs/04-software-requirements.md) | 37 requirements, each traced to a user need and, where it controls one, a hazard; 14 are deferred, each with a recorded reason, rather than hidden |
 | [Architecture and ADRs](docs/05-architecture.md) | The design, and eight decision records covering what was traded away |
@@ -40,7 +42,7 @@ Four things worth a look if you are short of time:
 - **Why Class C** ([intended use](docs/01-intended-use.md) section 7) — including why the obvious arguments for Class A and Class B do not hold.
 - **Residual risk** ([risk management](docs/02-risk-management.md) section 4) — the part where the design admits what it cannot do.
 - **ADR-008** ([trained fall model](docs/adr/ADR-008-trained-fall-model.md)) — a model trained in Azure ML on public datasets, tested on one it never saw, and run in-process as ONNX rather than behind an endpoint. It amends [ADR-002](docs/adr/ADR-002-rule-based-detector.md), which explains why the first build had no model at all.
-- **ADR-005** ([grounded shift summary](docs/adr/ADR-005-grounded-llm-summary.md)) — the LLM feature is designed around a validator that treats model output as untrusted; not yet built, but the validator's design needs no API key to test.
+- **ADR-005** ([grounded shift summary](docs/adr/ADR-005-grounded-llm-summary.md)) — an Azure OpenAI summary treated as untrusted input: built only from stored alerts, checked by a validator before display, and withheld when it fails. The validator needs no API key, so it is tested in CI.
 
 ## Design
 
@@ -54,7 +56,7 @@ One ASP.NET Core process holds the API, the detectors, the alerting logic and an
 | Database | SQLite via EF Core | [ADR-001](docs/adr/ADR-001-sqlite-over-postgres.md) |
 | Fall detection | LightGBM trained in Azure ML, run in-process with ONNX Runtime; threshold rules as a fallback | [ADR-008](docs/adr/ADR-008-trained-fall-model.md) |
 | Device data | In-process simulator with named scenarios | [ADR-003](docs/adr/ADR-003-in-process-simulator.md) |
-| Shift summary | Not built. Designed as grounded generation, validated before display | [ADR-005](docs/adr/ADR-005-grounded-llm-summary.md) |
+| Shift summary | Azure OpenAI (gpt-4.1-mini in Microsoft Foundry) or a template, validated before display | [ADR-005](docs/adr/ADR-005-grounded-llm-summary.md) |
 | Authentication | ASP.NET Core Identity, cookie-based | [ADR-006](docs/adr/ADR-006-identity-cookie-auth.md) |
 | Tests | xUnit, `WebApplicationFactory`, `FakeTimeProvider`; Vitest for the dashboard | |
 | CI/CD | GitHub Actions | |
@@ -98,6 +100,19 @@ The dashboard runs at `http://localhost:5173` and proxies `/api` and `/hubs` to 
 | `demo.nurse@example.invalid` | Caregiver, second in the escalation order |
 | `demo.resident@example.invalid` | Resident, configures caregivers and escalation |
 
+### Optional: AI shift summaries
+
+Without any setup, the Summary tab's **Shift handover** card writes summaries from a template. To have an Azure OpenAI deployment write them instead, store its details as user secrets. They stay outside the repository:
+
+```bash
+cd src/ElderSafe.Api
+dotnet user-secrets set "ShiftSummary:AzureOpenAI:Endpoint" "https://<your-resource>.cognitiveservices.azure.com/"
+dotnet user-secrets set "ShiftSummary:AzureOpenAI:Deployment" "<your-deployment-name>"
+dotnet user-secrets set "ShiftSummary:AzureOpenAI:ApiKey" "<your-key>"
+```
+
+In Azure App Service, set the same values as application settings, with `__` in place of `:`.
+
 From a caregiver's Alerts tab, use the Simulate card to send a fall or ordinary movement, varied on every press within ranges measured from recorded data, and watch a fall arrive, get acknowledged, and show up in the Summary tab.
 
 ## Not built yet
@@ -106,7 +121,6 @@ Deliberate omissions, each with a reason in the architecture document:
 
 - **No wandering (safe-zone) detection.** REQ-WANDER-01 to 07 are specified and traced to hazards, but not implemented within the build budget. The fall detector sits behind an interface for exactly this reason — a second detector can be added without reworking alerting or escalation.
 - **No "no data" alert.** REQ-SYS-01 (alerting when a resident's device goes silent) is specified but not implemented.
-- **No AI shift summary.** REQ-AI-01 and REQ-AI-02 are fully designed in [ADR-005](docs/adr/ADR-005-grounded-llm-summary.md) — grounded generation plus a validator that treats model output as untrusted, and that can be tested in CI with no API key — but not yet coded.
 - **No accuracy on real falls.** The model found 85% of falls in a held-out dataset, against 31% for the rules, but every fall in both datasets was simulated by a young adult, and its false-alarm rate is above any product target ([model card](docs/models/fall-model-card.md)). REQ-FALL-11 stays deferred.
 - **A failed emergency call is not shown to caregivers.** It is retried on every sweep and written to the audit log, but not shown on the dashboard (REQ-FALL-12, deferred).
 - **Reads are not audited.** Acknowledgements, alert events and configuration changes are in the audit log; who viewed a resident's alerts, summary or sensor trace is not (REQ-SEC-05, deferred).

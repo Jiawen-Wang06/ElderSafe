@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | **Product** | ElderSafe |
-| **Document status** | Draft v1.7. Numbers in [brackets] are starting targets to be tuned and then fixed. |
+| **Document status** | Draft v1.8. Numbers in [brackets] are starting targets to be tuned and then fixed. |
 | **Date** | 2026-11-18 |
 | **Related documents** | [Intended use](01-intended-use.md), [Risk management](02-risk-management.md), [User needs](03-user-needs.md) |
 
@@ -75,8 +75,8 @@
 
 | ID | Requirement | Acceptance criteria | Comes from | Verified by |
 | --- | --- | --- | --- | --- |
-| REQ-AI-01 | A shift summary shall mention only events stored in the system, and shall cite the identifier of each event it mentions. | On the evaluation set, no summary states an event that is absent from the input, and no summary omits an alert that was escalated. Every cited identifier exists. | UN-08; RISK-13 | **Not yet built. Designed in [ADR-005](adr/ADR-005-grounded-llm-summary.md), deferred — see [architecture](05-architecture.md) section 2.** |
-| REQ-AI-02 | The system shall validate a generated summary against the events it was given, and shall not show a summary that fails validation. | Validation rejects a summary citing an identifier absent from the input, and one omitting an escalated alert. A rejected summary is not displayed; the caregiver sees the underlying events instead. Validation runs on every summary, whichever generator produced it. | UN-08; RISK-13 | **Not yet built. Designed in [ADR-005](adr/ADR-005-grounded-llm-summary.md), deferred — see [architecture](05-architecture.md) section 2.** |
+| REQ-AI-01 | A shift summary shall mention only events stored in the system, and shall cite the identifier of each event it mentions. | The summary is generated from the resident's stored alerts for the shift, each under a short reference (`A1`, `A2`, …) that the text cites. On the evaluation set, no summary states an event that is absent from the input, and no summary omits an alert that was escalated. Every cited identifier exists. Nothing identifying the resident or a caregiver is sent to an external model. Access follows the same per-resident rule as every other caregiver-facing path. | UN-08; RISK-13, RISK-22 | Automated test; integration test |
+| REQ-AI-02 | The system shall validate a generated summary against the events it was given, and shall not show a summary that fails validation. | Validation rejects a summary citing an identifier absent from the input, and one omitting an escalated alert. A rejected summary is not displayed; the caregiver sees the underlying events and the reason instead. Validation runs on every summary, whichever generator produced it. When the model is unavailable, the summary is written from a template and the caregiver is told so. | UN-08; RISK-13 | Automated test; integration test |
 
 ## 7. Resident configuration
 
@@ -128,3 +128,4 @@
 | 1.5 | 2026-11-06 | REQ-WANDER-01 to 07, REQ-SYS-01, REQ-AI-01 and REQ-AI-02 marked deferred, matching the actual state of the code. The requirements document, the architecture document and the README had been describing these as built or evaluated since the project's first day; none of them have any implementation |
 | 1.6 | 2026-11-09 | Three requirements narrowed to what the build verifies, with the remainder split out and deferred rather than dropped. REQ-FALL-01's accuracy targets, which no rule-based build tuned on its own simulator can meet, moved to REQ-FALL-11. REQ-FALL-06's "failed call surfaced to caregivers" moved to REQ-FALL-12: a failed attempt is retried and audited but never shown. REQ-SEC-02's auditing of views moved to REQ-SEC-05: reads of resident data were never written to the audit log. All three had been showing as verified in the traceability matrix. REQ-CFG-09's acceptance criteria corrected: they said a stale stored limit stays offered, but the settings screen clamps it to the current caregiver count |
 | 1.7 | 2026-11-18 | REQ-FALL-01 extended for the trained model ([ADR-008](adr/ADR-008-trained-fall-model.md)): feature and score parity with training, refusal of short or gappy windows, refusal of a model that does not match its metadata, and the dashboard's varied scenarios; traced to RISK-20 and RISK-21. REQ-FALL-08 reworded: the trace had kept reporting the rules' thresholds as if they decided after the model replaced them, so it now names the detector and the reason recorded when the alert was raised. REQ-FALL-11's deferral reason updated: an evaluation now exists, but not on real falls, not within the false-alarm ceiling and not in CI |
+| 1.8 | 2026-11-18 | REQ-AI-01 and REQ-AI-02 built ([ADR-005](adr/ADR-005-grounded-llm-summary.md)) and no longer deferred. REQ-AI-01's criteria name the short alert references the summary cites, and that nothing identifying is sent to an external model (RISK-22). REQ-AI-02's criteria add the template fallback when the model is unavailable |

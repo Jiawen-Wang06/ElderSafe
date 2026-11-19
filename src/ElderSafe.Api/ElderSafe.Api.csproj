@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- dotnet user-secrets: holds the Azure OpenAI key in Development, outside the repository. -->
+    <UserSecretsId>eldersafe-api-7c2f4e9a-3b1d-4c86-9f0e-5a8d2b6c1e47</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

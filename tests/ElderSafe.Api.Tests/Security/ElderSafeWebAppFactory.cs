@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -29,6 +30,15 @@ public class ElderSafeWebAppFactory : WebApplicationFactory<Program>
         builder.UseSetting("DemoData:DeviceKey", DemoDeviceKey);
         builder.UseSetting("Alerting:EscalationSweepInterval", "01:00:00");
         builder.UseSetting("Simulation:Enabled", "true");
+
+        // A developer's user secrets may hold a real Azure OpenAI key. Tests
+        // must never spend it or depend on it, so the key is blanked here,
+        // after every other configuration source, and the template is used.
+        builder.ConfigureAppConfiguration((_, configuration) =>
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ShiftSummary:AzureOpenAI:ApiKey"] = ""
+            }));
 
         builder.ConfigureServices(services =>
         {

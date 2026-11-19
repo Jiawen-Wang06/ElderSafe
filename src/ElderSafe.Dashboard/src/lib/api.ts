@@ -122,6 +122,39 @@ export interface SimulationResult {
   alertId: string | null;
 }
 
+/** One stored alert behind a shift summary, under the reference the text cites. */
+export interface ShiftSummaryAlert {
+  /** The reference the summary cites, such as "A1". */
+  ref: string;
+  id: string;
+  kind: string;
+  raisedAt: string;
+  acknowledgedAt: string | null;
+  acknowledgedByDisplayName: string | null;
+  escalationLevel: number;
+  escalated: boolean;
+  emergencyCalled: boolean;
+}
+
+/**
+ * A handover summary of a resident's last shift (REQ-AI-01, REQ-AI-02).
+ *
+ * `text` is null when the generated summary failed validation; `problems`
+ * then says why, and the stored `alerts` are shown instead.
+ */
+export interface ShiftSummary {
+  residentId: string;
+  from: string;
+  to: string;
+  status: "Generated" | "Rejected";
+  text: string | null;
+  generator: string;
+  /** Why the template was used instead of the AI model, if it was. */
+  notice: string | null;
+  problems: string[];
+  alerts: ShiftSummaryAlert[];
+}
+
 export interface ResidentSettingsView {
   residentId: string;
   displayName: string;
@@ -275,6 +308,13 @@ export const api = {
 
   trace(alertId: string): Promise<AlertTrace> {
     return request<AlertTrace>(`/api/alerts/${alertId}/trace`);
+  },
+
+  shiftSummary(residentId: string, timeZone: string): Promise<ShiftSummary> {
+    return request<ShiftSummary>(`/api/residents/${residentId}/shift-summary`, {
+      method: "POST",
+      body: JSON.stringify({ timeZone }),
+    });
   },
 
   summary(residentId: string, from: Date, to: Date): Promise<AlertSummary> {

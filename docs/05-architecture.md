@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | **Product** | ElderSafe |
-| **Document status** | Draft v0.5 |
+| **Document status** | Draft v0.6 |
 | **Date** | 2026-11-18 |
 | **Safety class** | C (see [intended use](01-intended-use.md) section 7) |
 | **Related documents** | [Risk management](02-risk-management.md), [Software requirements](04-software-requirements.md), [ADRs](adr/) |
@@ -31,7 +31,7 @@ A reviewer should be able to clone the repository and have it running with two c
 | Caregiver dashboard | **Built**, React + TypeScript, one screen | Kept because the target role requires React and TypeScript |
 | Device simulator | **Built**, in-process background service | Avoids a second process. See [ADR-003](adr/ADR-003-in-process-simulator.md) |
 | Database | **Built**, SQLite through EF Core | No container, no server. See [ADR-001](adr/ADR-001-sqlite-over-postgres.md) |
-| Shift summary | **Deferred** | Designed in [ADR-005](adr/ADR-005-grounded-llm-summary.md) — grounded generation with a validator that needs no API key to test — but not implemented within the build budget |
+| Shift summary | **Built**: grounded generation, an Azure OpenAI deployment or a template, and a validator | [ADR-005](adr/ADR-005-grounded-llm-summary.md). Works with no key at all; the model is configuration |
 | Accuracy on real falls | **Deferred** | The model is evaluated on falls simulated by volunteers ([model card](models/fall-model-card.md)), not on real falls of older people, and its false-alarm rate is above target. That evaluation is REQ-FALL-11 |
 | Showing a failed emergency call to caregivers | **Deferred** | A failed attempt is retried on every sweep and written to the audit log, but the dashboard does not show it (REQ-FALL-12) |
 | Auditing reads of resident data | **Deferred** | Acknowledgements, alert lifecycle events and configuration changes are audited; reading the alert list, summary or trace is not (REQ-SEC-05) |
@@ -90,8 +90,8 @@ Everything inside the box is one process. The dashboard is static files served b
 | `ResidentAccessGuard` | Checks that the signed-in caregiver is assigned to the resident being requested | REQ-SEC-01 |
 | `AuditLog` | Append-only record of alert lifecycle events, acknowledgements and configuration changes, attributed to the signed-in account. Reads are not yet recorded | REQ-SEC-02, REQ-CFG-05; REQ-SEC-05 deferred |
 | `ShiftSummaryService` | Builds a grounded prompt from stored events, calls a generator, validates the result | REQ-AI-01, REQ-AI-02 |
-| `ISummaryGenerator` | Abstraction over text generation. Two implementations: an LLM client, and a deterministic template generator used offline and in CI | REQ-AI-01 |
-| `SummaryValidator` | Rejects a summary citing an event ID that is not in the input, or omitting an escalated alert | REQ-AI-02 |
+| `ISummaryGenerator` | Abstraction over text generation. `AzureOpenAiSummaryGenerator` calls the Foundry deployment; `TemplateSummaryGenerator` writes fixed sentences, and is the default and the fallback | REQ-AI-01 |
+| `SummaryValidator` | Rejects a summary citing an alert reference that is not in the input, or omitting an escalated alert | REQ-AI-02 |
 | Dashboard | One screen: open alerts, acknowledge, resident settings, "simulate" buttons | — |
 
 ### The fall detector
@@ -136,17 +136,15 @@ The model is the same `IFallDetector` interface, so alerting and escalation did 
 
 ### The shift summary
 
-**Deferred — designed but not implemented; see section 2.**
-
 The summary is not "send the events to a model and print what comes back." The useful structure is three parts, and only the middle one needs a model:
 
-1. **Ground.** Build the prompt from stored events only. Each event carries its ID, and the prompt instructs the model to cite the ID of every event it mentions. Resident identifiers go in; names do not.
-2. **Generate.** `ISummaryGenerator` produces text. `OpenAiSummaryGenerator` calls a model. `TemplateSummaryGenerator` produces a deterministic summary from the same events with no network call, and is the default when no key is configured.
+1. **Ground.** Build the prompt from the shift's stored alerts only. Each alert carries a short reference (`A1`, `A2`, …), and the prompt instructs the model to cite the reference of every alert it mentions. No names and no stored identifiers go in.
+2. **Generate.** `ISummaryGenerator` produces text. `AzureOpenAiSummaryGenerator` calls the Azure OpenAI deployment over HTTPS. `TemplateSummaryGenerator` produces a deterministic summary from the same alerts with no network call. It is the default when no key is configured, and the fallback when the model is rate limited, refused or too slow.
 3. **Validate.** `SummaryValidator` checks the output against the input events: every cited ID must exist, no ID may be cited that was not supplied, and every escalated alert must appear. A summary that fails is rejected rather than shown.
 
 The validator is a pure function over the events and the text. It needs no API key, runs in milliseconds, and is where the tests live. That is deliberate: the guardrail is the part a reviewer in this domain cares about, and it is also the part that can be proven in CI for free.
 
-If built this way, the arrangement would make the feature complete and testable without ever calling a model, and switching on a real model later would be a configuration change rather than new code.
+The feature is complete and tested without ever calling a model, and switching the model on is configuration: an endpoint, a deployment name and a key, kept in user secrets or App Service settings. The stored alerts are returned with every summary and listed under it, so a caregiver can check the text against them.
 
 ### Escalation
 
@@ -205,7 +203,7 @@ The earlier plan had four source projects. Two is enough, and fewer moving parts
 | Database | SQLite via EF Core | [ADR-001](adr/ADR-001-sqlite-over-postgres.md) |
 | Detection | LightGBM trained in Azure ML, run as ONNX in-process; rule-based fallback | [ADR-008](adr/ADR-008-trained-fall-model.md), amending [ADR-002](adr/ADR-002-rule-based-detector.md) |
 | Simulator | In-process `BackgroundService` | [ADR-003](adr/ADR-003-in-process-simulator.md) |
-| Shift summary | Grounded generation behind an interface, with a validator | [ADR-005](adr/ADR-005-grounded-llm-summary.md) |
+| Shift summary | Azure OpenAI (Foundry) over HTTPS or a template, behind an interface, with a validator | [ADR-005](adr/ADR-005-grounded-llm-summary.md) |
 | Authentication | ASP.NET Core Identity, cookie-based | [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
 | Dashboard | React 18 + TypeScript + Vite | Required by the target role |
 | Tests | xUnit, `WebApplicationFactory`, `FakeTimeProvider` | |
@@ -249,7 +247,7 @@ Stated plainly, because a reviewer will spot it anyway:
 - **Alerts reach the dashboard and nowhere else.** A caregiver who is not signed in and looking at a screen is not told. The escalation chain limits the harm, but if no assigned caregiver has an active session nobody is notified until one signs in. This is RISK-16, the largest residual risk in the project, and [ADR-007](adr/ADR-007-dashboard-only-notification.md) explains why push notification was deferred.
 - **There is no pairing flow.** Devices authenticate and are bound to one resident, but the only device in the system is seeded. Creating a pairing, showing its key once and revoking it are deliberately out of scope: the interesting part is not the endpoint but deciding who may pair a device to a resident, and there is no administrator role to answer that. Getting a key onto a real band is a hardware question as well — factory provisioning or Bluetooth, used once at setup rather than as the data path.
 - **No FHIR export.** Deferred entirely.
-- **There is no shift summary.** The design in [ADR-005](adr/ADR-005-grounded-llm-summary.md) — grounded generation, a template generator for offline use and CI, and a validator that treats model output as untrusted — is not implemented (REQ-AI-01, REQ-AI-02, deferred).
+- **The shift summary's validator checks facts, not tone.** It rejects an invented or missing alert, but not a summary that cites real alerts and describes them wrongly (RISK-13). The language model is evaluated by hand, not in CI, because CI has no key and model output is not deterministic.
 - **A failed emergency call is not shown to caregivers.** It is retried on every sweep and written to the audit log, but nobody watching the dashboard learns that the last safety net failed (REQ-FALL-12, deferred).
 - **Reads are not audited.** The audit log records who acknowledged an alert and who changed configuration, but not who looked at a resident's alerts, summary or sensor trace (REQ-SEC-05, deferred).
 
@@ -264,3 +262,4 @@ Each of these is a deliberate trade against the two-day budget, and each is reco
 | 0.3 | 2026-11-06 | Azure deployment marked **Built**: deployed manually to a single free-tier Web App |
 | 0.4 | 2026-11-09 | Scope table: safe-zone configuration marked **Deferred** (it had been listed as built with escalation settings); deferred rows added for measured accuracy (REQ-FALL-11), showing a failed emergency call (REQ-FALL-12), auditing reads (REQ-SEC-05) and the "no data" alert (REQ-SYS-01). `AuditLog` row corrected: reads were never recorded. Section 10's shift-summary bullet corrected: it described the summary as shipping, but nothing of it is built |
 | 0.5 | 2026-11-18 | Fall detection by a model trained in Azure ML and run in-process as ONNX ([ADR-008](adr/ADR-008-trained-fall-model.md)). Scope table, component table, detector section, alert flow (the window is 4 s and goes through `AlertService`, not the controller) and section 10 updated. The rules stay as a configured fallback |
+| 0.6 | 2026-11-18 | Shift summary built ([ADR-005](adr/ADR-005-grounded-llm-summary.md)): scope table, component table, summary section and section 10 updated |

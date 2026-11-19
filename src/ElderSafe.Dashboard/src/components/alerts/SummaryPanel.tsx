@@ -6,6 +6,7 @@ import type { AlertSummary, SummaryAlertEntry } from "@/lib/api";
 import { presetRange, totalsFor } from "@/lib/summary";
 import type { SummaryPreset } from "@/lib/summary";
 import { AlertSummaryChart } from "@/components/AlertSummaryChart";
+import { ShiftSummaryCard } from "@/components/alerts/ShiftSummaryCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -107,109 +108,122 @@ export function SummaryPanel() {
   }
 
   const totals = summary === null ? null : totalsFor(summary);
+  const selected = residents.find((resident) => resident.id === residentId);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Summary</CardTitle>
-        <CardDescription>
-          How many alerts were raised, and how many were answered in time.
-        </CardDescription>
-      </CardHeader>
+    <div className="flex flex-col gap-4">
+      {selected !== undefined && (
+        // Keyed by resident, so switching residents clears the last summary
+        // rather than showing one resident's night under another's name.
+        <ShiftSummaryCard
+          key={selected.id}
+          residentId={selected.id}
+          residentDisplayName={selected.displayName}
+        />
+      )}
 
-      <CardContent className="flex flex-col gap-4">
-        {residents.length > 1 && (
-          <div className="flex flex-wrap gap-2">
-            {residents.map((resident) => (
+      <Card>
+        <CardHeader>
+          <CardTitle>Summary</CardTitle>
+          <CardDescription>
+            How many alerts were raised, and how many were answered in time.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="flex flex-col gap-4">
+          {residents.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {residents.map((resident) => (
+                <Button
+                  key={resident.id}
+                  variant={resident.id === residentId ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setResidentId(resident.id)}
+                >
+                  {resident.displayName}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            {(["week", "month", "year"] as const).map((option) => (
               <Button
-                key={resident.id}
-                variant={resident.id === residentId ? "secondary" : "outline"}
+                key={option}
+                variant={preset === option ? "secondary" : "outline"}
                 size="sm"
-                onClick={() => setResidentId(resident.id)}
+                onClick={() => setPreset(option)}
               >
-                {resident.displayName}
+                {presetLabels[option]}
               </Button>
             ))}
-          </div>
-        )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          {(["week", "month", "year"] as const).map((option) => (
-            <Button
-              key={option}
-              variant={preset === option ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => setPreset(option)}
-            >
-              {presetLabels[option]}
-            </Button>
-          ))}
-
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <label htmlFor="summary-from">from</label>
-            <input
-              id="summary-from"
-              type="date"
-              value={customFrom}
-              onChange={(event) => {
-                setCustomFrom(event.target.value);
-                setPreset("custom");
-              }}
-              className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-            />
-            <label htmlFor="summary-to">to</label>
-            <input
-              id="summary-to"
-              type="date"
-              value={customTo}
-              onChange={(event) => {
-                setCustomTo(event.target.value);
-                setPreset("custom");
-              }}
-              className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-            />
-          </div>
-        </div>
-
-        {error !== null && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-
-        {loading ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            Loading summary…
-          </p>
-        ) : summary !== null && totals !== null ? (
-          <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-xs text-muted-foreground">Alerts raised</p>
-                <p className="text-2xl font-semibold tabular-nums">{totals.total}</p>
-              </div>
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-xs text-muted-foreground">Responded in time</p>
-                <p className="text-2xl font-semibold tabular-nums">{totals.respondedInTime}</p>
-              </div>
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-xs text-muted-foreground">Escalated</p>
-                <p className="text-2xl font-semibold tabular-nums">{totals.escalated}</p>
-              </div>
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-xs text-muted-foreground">Reached emergency call</p>
-                <p className="text-2xl font-semibold tabular-nums">{totals.emergencyCalled}</p>
-              </div>
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <label htmlFor="summary-from">from</label>
+              <input
+                id="summary-from"
+                type="date"
+                value={customFrom}
+                onChange={(event) => {
+                  setCustomFrom(event.target.value);
+                  setPreset("custom");
+                }}
+                className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+              />
+              <label htmlFor="summary-to">to</label>
+              <input
+                id="summary-to"
+                type="date"
+                value={customTo}
+                onChange={(event) => {
+                  setCustomTo(event.target.value);
+                  setPreset("custom");
+                }}
+                className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+              />
             </div>
+          </div>
 
-            <AlertSummaryChart summary={summary} />
+          {error !== null && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
 
-            <AlertEntryList alerts={summary.alerts} />
-          </>
-        ) : null}
-      </CardContent>
-    </Card>
+          {loading ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              Loading summary…
+            </p>
+          ) : summary !== null && totals !== null ? (
+            <>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Alerts raised</p>
+                  <p className="text-2xl font-semibold tabular-nums">{totals.total}</p>
+                </div>
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Responded in time</p>
+                  <p className="text-2xl font-semibold tabular-nums">{totals.respondedInTime}</p>
+                </div>
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Escalated</p>
+                  <p className="text-2xl font-semibold tabular-nums">{totals.escalated}</p>
+                </div>
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-xs text-muted-foreground">Reached emergency call</p>
+                  <p className="text-2xl font-semibold tabular-nums">{totals.emergencyCalled}</p>
+                </div>
+              </div>
+
+              <AlertSummaryChart summary={summary} />
+
+              <AlertEntryList alerts={summary.alerts} />
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

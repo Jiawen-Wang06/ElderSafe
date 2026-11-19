@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | **Product** | ElderSafe |
-| **Document status** | Draft v0.1 |
+| **Document status** | Draft v0.2 |
 | **Date** | 2026-11-18 |
 | **Related documents** | [Risk management](02-risk-management.md), [Architecture](05-architecture.md), [Fall model card](models/fall-model-card.md) |
 
@@ -32,7 +32,15 @@ The model is not third-party software, but it is a component this project did no
 - ONNX Runtime's issue tracker has not yet been reviewed for anomalies at this version. Until it is, the parity test is the evidence that the runtime computes what training computed, for the windows in its fixture.
 - Floating-point results can differ in the last digits between runtimes. The parity test compares to 4 decimal places, which is well inside the margin between typical scores and the threshold.
 
-## 2. Rest of the system
+## 2. Shift summary
+
+| SOUP | Version | Used for | Relied on for | How the reliance is checked |
+| --- | --- | --- | --- | --- |
+| Azure OpenAI service (Microsoft Foundry), model gpt-4.1-mini | The model version Azure reports with each answer, recorded in the summary's "written by" line | Writing the shift summary's text ([ADR-005](adr/ADR-005-grounded-llm-summary.md)) | Nothing on trust. Its text is treated as untrusted input | Every summary is validated against the stored alerts and withheld if it fails (REQ-AI-02). When the service is unavailable, the template writes the summary instead. The service is called over HTTPS with no SDK, so no client library is added |
+
+**Known anomalies:** language models can state things that are not in their input. That is the reason for the validator, and RISK-13 records what the validator cannot catch.
+
+## 3. Rest of the system
 
 | SOUP | Version | Used for |
 | --- | --- | --- |
@@ -45,8 +53,9 @@ The model is not third-party software, but it is a component this project did no
 
 These are relied on for their documented behaviour. They are exercised end to end by the integration tests, which run the real host against a real SQLite file. Exact versions are pinned by the lock files and project files. Anomaly review for them has not been done in this project.
 
-## 3. Revision history
+## 4. Revision history
 
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-11-18 | First list, written when the trained fall model and ONNX Runtime were added ([ADR-008](adr/ADR-008-trained-fall-model.md)) |
+| 0.2 | 2026-11-18 | Azure OpenAI service added for the shift summary |
