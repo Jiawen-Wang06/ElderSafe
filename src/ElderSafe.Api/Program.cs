@@ -6,6 +6,7 @@ using ElderSafe.Api.Data.Entities;
 using ElderSafe.Api.Detection;
 using ElderSafe.Api.Security;
 using ElderSafe.Api.Simulation;
+using ElderSafe.Api.Summaries;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -39,6 +40,8 @@ builder.Services.Configure<AlertServiceOptions>(
     builder.Configuration.GetSection(AlertServiceOptions.SectionName));
 builder.Services.Configure<SimulationOptions>(
     builder.Configuration.GetSection(SimulationOptions.SectionName));
+builder.Services.Configure<ShiftSummaryOptions>(
+    builder.Configuration.GetSection(ShiftSummaryOptions.SectionName));
 
 builder.Services.AddIdentity<UserAccount, IdentityRole<Guid>>(options =>
 {
@@ -158,6 +161,34 @@ builder.Services.AddScoped<AlertSummaryService>(provider =>
         provider.GetRequiredService<ElderSafeDbContext>(),
         provider.GetRequiredService<IResidentAccess>(),
         provider.GetRequiredService<IOptions<EscalationOptions>>().Value));
+
+// The shift summary's generator: the Azure OpenAI deployment when its
+// endpoint, deployment and key are all configured, otherwise the template.
+// Either way ShiftSummaryService validates what comes back (ADR-005).
+builder.Services.AddHttpClient(nameof(AzureOpenAiSummaryGenerator));
+builder.Services.AddScoped<ISummaryGenerator>(provider =>
+{
+    var model = provider.GetRequiredService<IOptions<ShiftSummaryOptions>>().Value.AzureOpenAI;
+
+    if (!model.IsConfigured)
+    {
+        return new TemplateSummaryGenerator();
+    }
+
+    return new AzureOpenAiSummaryGenerator(
+        provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(AzureOpenAiSummaryGenerator)),
+        model);
+});
+
+builder.Services.AddScoped<ShiftSummaryService>(provider =>
+    new ShiftSummaryService(
+        provider.GetRequiredService<ElderSafeDbContext>(),
+        provider.GetRequiredService<IResidentAccess>(),
+        provider.GetRequiredService<TimeProvider>(),
+        provider.GetRequiredService<IOptions<ShiftSummaryOptions>>().Value,
+        provider.GetRequiredService<IOptions<EscalationOptions>>().Value,
+        provider.GetRequiredService<ISummaryGenerator>(),
+        provider.GetRequiredService<ILogger<ShiftSummaryService>>()));
 
 builder.Services.AddScoped<ResidentConfigurationService>(provider =>
     new ResidentConfigurationService(
