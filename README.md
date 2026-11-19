@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/headerImg.png" alt="ElderSafe" width="100%">
+  <img src="docs/media/headerImg.png" alt="ElderSafe" width="80%">
 </p>
 
 | | |
@@ -23,43 +23,43 @@
 
 Each highlight follows the same pattern: what was achieved, how it was measured, and how it was built.
 
-- **A trained fall model that outperforms the rules it replaced**
-  - **Result:** detected **85.5%** of falls, up from **31.2%** with the hand-tuned rules.
-  - **Measured on:** UMAFall, a dataset from a different lab, sensor and set of volunteers, never used in training or tuning.
-  - **How:** a **LightGBM** classifier on 8 explainable accelerometer features, trained as an **Azure Machine Learning** job, tracked with **MLflow** and registered in the Azure ML model registry. Validated with subject-wise 5-fold cross-validation; the alert threshold was fixed before the held-out data was scored.
-  - **Trade-off:** about twice the rules' false-alarm rate (9.2 vs 4.0 per hour of daily activity), accepted on purpose to catch more falls and recorded in the risk file.
-  - → [ADR-008](docs/adr/ADR-008-trained-fall-model.md), [model card](docs/models/fall-model-card.md)
-- **Fast, verifiable model serving**
-  - **Result:** every reading window is scored inside the API, with no network call.
-  - **Measured by:** the exact model version recorded in every alert's audit entry, and a startup check that refuses to run a model whose SHA-256 hash doesn't match.
-  - **How:** exported the model to **ONNX** and ran it with **ONNX Runtime in .NET**. A parity test keeps the Python (training) and C# (production) feature code producing identical values.
-- **An LLM feature that never trusts the model's output**
-  - **Result:** handover summaries that flag an unacknowledged alert rose from **3 of 7 to 7 of 7**.
-  - **Measured by:** a live evaluation of 10 summaries per prompt version, with **0 invented or missing alerts** in either version.
-  - **How:**
-    - **Azure OpenAI (GPT-4.1-mini, deployed in Microsoft Foundry)** writes the summary from the stored alerts only.
-    - A code validator withholds any summary that invents an alert or omits an escalated one.
-    - A template takes over when the model is rate-limited or unavailable.
-    - Each summary records the prompt and model version that produced it.
-  - → [ADR-005](docs/adr/ADR-005-grounded-llm-summary.md), including the prompt v1 vs v2 evaluation
-- **Medical-software engineering practices**
-  - **Result:** all **37 requirements** traced to user needs, hazards and tests, and **22 hazards** scored before and after controls.
-  - **Measured by:** a **CI gate** that fails the build when any requirement has no passing test and isn't deferred with a recorded reason.
-  - **How:** **IEC 62304 Class C** framing, an ISO 14971-style risk file, and user needs drawn from an interview with a registered nurse.
-  - → [risk file](docs/02-risk-management.md), [traceability matrix](docs/traceability.md)
-- **Real-time alerting with automatic escalation**
-  - **Result:** fall alerts appear on caregivers' dashboards live, and an unanswered alert moves on automatically.
-  - **Measured by:** escalation to the next caregiver after **2 minutes** without acknowledgement, ending in a simulated emergency call; covered by tests that use a fake clock.
-  - **How:** an **ASP.NET Core** API pushing alerts over **SignalR**, a background escalation worker driven by a pure, unit-tested policy, and a **React 19 + TypeScript** dashboard.
-- **Security by default**
-  - **Result:** no caregiver can see, or even confirm the existence of, another resident's data.
-  - **Measured by:** the API answers **404, never 403**, for any resident the caregiver isn't assigned to, verified by automated tests.
-  - **How:** relationship-based authorization on **ASP.NET Core Identity** cookie sign-in, separate API-key authentication for devices, and secrets kept out of the repository, with the full history scanned.
-- **Shipped like production software**
-  - **Result:** every pull request is gated, and only a tested image reaches production.
-  - **Measured by:** **258 tests (187 xUnit + 71 Vitest)**, lint and the traceability check on every pull request, plus a smoke test of the built container (sign in, simulate a fall, confirm the alert).
-  - **How:** **GitHub Actions** pipelines that build a **Docker** image, test it, and publish that same image to **GHCR**, where **Azure App Service** runs it.
-  - → [ADR-009](docs/adr/ADR-009-container-deployment.md)
+- **A trained fall model that outperforms the rules it replaced**<br>
+  – **Result:** detected **85.5%** of falls, up from **31.2%** with the hand-tuned rules.<br>
+  – **Measured on:** UMAFall, a dataset from a different lab, sensor and set of volunteers, never used in training or tuning.<br>
+  – **How:** a **LightGBM** classifier on 8 explainable accelerometer features, trained as an **Azure Machine Learning** job, tracked with **MLflow** and registered in the Azure ML model registry. Validated with subject-wise 5-fold cross-validation; the alert threshold was fixed before the held-out data was scored.<br>
+  – **Trade-off:** about twice the rules' false-alarm rate (9.2 vs 4.0 per hour of daily activity), accepted on purpose to catch more falls and recorded in the risk file.<br>
+  → [ADR-008](docs/adr/ADR-008-trained-fall-model.md), [model card](docs/models/fall-model-card.md)
+- **Fast, verifiable model serving**<br>
+  – **Result:** every reading window is scored inside the API, with no network call.<br>
+  – **Measured by:** the exact model version recorded in every alert's audit entry, and a startup check that refuses to run a model whose SHA-256 hash doesn't match.<br>
+  – **How:** exported the model to **ONNX** and ran it with **ONNX Runtime in .NET**. A parity test keeps the Python (training) and C# (production) feature code producing identical values.
+- **An LLM feature that never trusts the model's output**<br>
+  – **Result:** handover summaries that flag an unacknowledged alert rose from **3 of 7 to 7 of 7**.<br>
+  – **Measured by:** a live evaluation of 10 summaries per prompt version, with **0 invented or missing alerts** in either version.<br>
+  – **How:**<br>
+  &emsp;– **Azure OpenAI (GPT-4.1-mini, deployed in Microsoft Foundry)** writes the summary from the stored alerts only.<br>
+  &emsp;– A code validator withholds any summary that invents an alert or omits an escalated one.<br>
+  &emsp;– A template takes over when the model is rate-limited or unavailable.<br>
+  &emsp;– Each summary records the prompt and model version that produced it.<br>
+  → [ADR-005](docs/adr/ADR-005-grounded-llm-summary.md), including the prompt v1 vs v2 evaluation
+- **Medical-software engineering practices**<br>
+  – **Result:** all **37 requirements** traced to user needs, hazards and tests, and **22 hazards** scored before and after controls.<br>
+  – **Measured by:** a **CI gate** that fails the build when any requirement has no passing test and isn't deferred with a recorded reason.<br>
+  – **How:** **IEC 62304 Class C** framing, an ISO 14971-style risk file, and user needs drawn from an interview with a registered nurse.<br>
+  → [risk file](docs/02-risk-management.md), [traceability matrix](docs/traceability.md)
+- **Real-time alerting with automatic escalation**<br>
+  – **Result:** fall alerts appear on caregivers' dashboards live, and an unanswered alert moves on automatically.<br>
+  – **Measured by:** escalation to the next caregiver after **2 minutes** without acknowledgement, ending in a simulated emergency call; covered by tests that use a fake clock.<br>
+  – **How:** an **ASP.NET Core** API pushing alerts over **SignalR**, a background escalation worker driven by a pure, unit-tested policy, and a **React 19 + TypeScript** dashboard.
+- **Security by default**<br>
+  – **Result:** no caregiver can see, or even confirm the existence of, another resident's data.<br>
+  – **Measured by:** the API answers **404, never 403**, for any resident the caregiver isn't assigned to, verified by automated tests.<br>
+  – **How:** relationship-based authorization on **ASP.NET Core Identity** cookie sign-in, separate API-key authentication for devices, and secrets kept out of the repository, with the full history scanned.
+- **Shipped like production software**<br>
+  – **Result:** every pull request is gated, and only a tested image reaches production.<br>
+  – **Measured by:** **258 tests (187 xUnit + 71 Vitest)**, lint and the traceability check on every pull request, plus a smoke test of the built container (sign in, simulate a fall, confirm the alert).<br>
+  – **How:** **GitHub Actions** pipelines that build a **Docker** image, test it, and publish that same image to **GHCR**, where **Azure App Service** runs it.<br>
+  → [ADR-009](docs/adr/ADR-009-container-deployment.md)
 
 ## How it works
 
