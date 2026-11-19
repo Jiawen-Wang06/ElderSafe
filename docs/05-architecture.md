@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | **Product** | ElderSafe |
-| **Document status** | Draft v0.6 |
+| **Document status** | Draft v0.7 |
 | **Date** | 2026-11-18 |
 | **Safety class** | C (see [intended use](01-intended-use.md) section 7) |
 | **Related documents** | [Risk management](02-risk-management.md), [Software requirements](04-software-requirements.md), [ADRs](adr/) |
@@ -38,7 +38,7 @@ A reviewer should be able to clone the repository and have it running with two c
 | "No data" alert | **Deferred** | Specified (REQ-SYS-01) but not implemented within the build budget |
 | FHIR export | **Deferred** | Needs a HAPI FHIR server running alongside |
 | Caregiver authentication and per-resident authorization | **Built**, ASP.NET Core Identity with cookies | The data is personal health information; a stub would leave the hazard uncontrolled. See [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
-| Azure deployment | **Built**, single Web App | Deployed manually (portal + Kudu zip deploy), free tier, no Bicep on day one. See [ADR-004](adr/ADR-004-single-web-app.md) |
+| Azure deployment | **Built**, single Linux Web App running one container image | Built and smoke-tested in GitHub Actions, published to GitHub Container Registry, pulled by the Web App. No Bicep yet. See [ADR-009](adr/ADR-009-container-deployment.md), which amends [ADR-004](adr/ADR-004-single-web-app.md) |
 
 Deferred items stay in the requirements register with no passing test, so `traceability.md` shows the gaps honestly rather than hiding them.
 
@@ -207,7 +207,7 @@ The earlier plan had four source projects. Two is enough, and fewer moving parts
 | Authentication | ASP.NET Core Identity, cookie-based | [ADR-006](adr/ADR-006-identity-cookie-auth.md) |
 | Dashboard | React 18 + TypeScript + Vite | Required by the target role |
 | Tests | xUnit, `WebApplicationFactory`, `FakeTimeProvider` | |
-| Deployment | Single Azure Web App | [ADR-004](adr/ADR-004-single-web-app.md) |
+| Deployment | One container image on a Linux Azure Web App, from GitHub Container Registry | [ADR-009](adr/ADR-009-container-deployment.md) |
 
 ## 9. Build order
 
@@ -263,3 +263,4 @@ Each of these is a deliberate trade against the two-day budget, and each is reco
 | 0.4 | 2026-11-09 | Scope table: safe-zone configuration marked **Deferred** (it had been listed as built with escalation settings); deferred rows added for measured accuracy (REQ-FALL-11), showing a failed emergency call (REQ-FALL-12), auditing reads (REQ-SEC-05) and the "no data" alert (REQ-SYS-01). `AuditLog` row corrected: reads were never recorded. Section 10's shift-summary bullet corrected: it described the summary as shipping, but nothing of it is built |
 | 0.5 | 2026-11-18 | Fall detection by a model trained in Azure ML and run in-process as ONNX ([ADR-008](adr/ADR-008-trained-fall-model.md)). Scope table, component table, detector section, alert flow (the window is 4 s and goes through `AlertService`, not the controller) and section 10 updated. The rules stay as a configured fallback |
 | 0.6 | 2026-11-18 | Shift summary built ([ADR-005](adr/ADR-005-grounded-llm-summary.md)): scope table, component table, summary section and section 10 updated |
+| 0.7 | 2026-11-19 | Deployment as a container image ([ADR-009](adr/ADR-009-container-deployment.md)): scope and technology tables updated |

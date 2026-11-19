@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | **Product** | ElderSafe |
-| **Document status** | Draft v0.2 |
+| **Document status** | Draft v0.3 |
 | **Date** | 2026-11-18 |
 | **Related documents** | [Risk management](02-risk-management.md), [Architecture](05-architecture.md), [Fall model card](models/fall-model-card.md) |
 
@@ -50,8 +50,9 @@ The model is not third-party software, but it is a component this project did no
 | @microsoft/signalr | 10 | Dashboard's live connection |
 | react-router | 8 | Dashboard navigation |
 | Base UI, shadcn/ui components, Tailwind CSS, lucide-react | See `package.json` | Dashboard presentation |
+| Container base image `mcr.microsoft.com/dotnet/aspnet` | 10.0, resolved when the image is built | Operating system and .NET runtime in the deployed container ([ADR-009](adr/ADR-009-container-deployment.md)) |
 
-These are relied on for their documented behaviour. They are exercised end to end by the integration tests, which run the real host against a real SQLite file. Exact versions are pinned by the lock files and project files. Anomaly review for them has not been done in this project.
+These are relied on for their documented behaviour. The container base image is patched by Microsoft and picked up only when a new image is built, so a long gap between builds means a stale operating system. They are exercised end to end by the integration tests, which run the real host against a real SQLite file. Exact versions are pinned by the lock files and project files. Anomaly review for them has not been done in this project.
 
 ## 4. Revision history
 
@@ -59,3 +60,4 @@ These are relied on for their documented behaviour. They are exercised end to en
 | --- | --- | --- |
 | 0.1 | 2026-11-18 | First list, written when the trained fall model and ONNX Runtime were added ([ADR-008](adr/ADR-008-trained-fall-model.md)) |
 | 0.2 | 2026-11-18 | Azure OpenAI service added for the shift summary |
+| 0.3 | 2026-11-19 | Container base image added ([ADR-009](adr/ADR-009-container-deployment.md)) |
