@@ -98,7 +98,7 @@ Each limitation is stated in the docs rather than hidden:
 
 ## Datasets and credit
 
-The fall model exists because these research groups published their data. Thank you.
+The fall model was trained and evaluated on the following publicly available datasets. Grateful acknowledgement is extended to the researchers who collected and published them.
 
 | Dataset | Used for | Licence |
 | --- | --- | --- |
