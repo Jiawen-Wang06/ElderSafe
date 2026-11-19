@@ -12,13 +12,21 @@ namespace ElderSafe.Api.Alerting;
 public sealed record TraceSample(DateTimeOffset At, double MagnitudeG);
 
 /// <summary>
-/// The thresholds the detector was using, sent alongside the trace.
+/// The rule-based detector's thresholds, sent alongside the trace.
 /// </summary>
 /// <remarks>
+/// <para>
+/// These are the thresholds <see cref="Detection.ThresholdFallDetector"/>
+/// applies. When the trained model is the detector, they were not applied to
+/// the alert; the chart still draws them as a reference a person can read,
+/// and <see cref="AlertTrace.Detector"/> says which case this is.
+/// </para>
+/// <para>
 /// Reported rather than assumed by the client. The values live in
 /// configuration and can be retuned without a rebuild (ADR-002), so a chart
 /// that drew 2.5 g from a constant in its own source would, after the first
 /// retune, confidently draw a line the detector no longer uses.
+/// </para>
 /// </remarks>
 public sealed record DetectorThresholds(
     double FreeFallG,
@@ -41,6 +49,15 @@ public sealed record DetectorThresholds(
 /// into something reviewable, which is what RISK-02 needs: alerts stop being
 /// ignored when they can be understood.
 /// </remarks>
+/// <param name="Detector">
+/// The detector configured now: <c>Threshold</c> or <c>Onnx</c>.
+/// </param>
+/// <param name="DecisionReason">
+/// The reason the detector recorded in the audit log when it raised this
+/// alert, such as the model version and its score. This is the record of
+/// what actually decided, and stays true if the configuration has changed
+/// since. Null only if no such entry exists.
+/// </param>
 public sealed record AlertTrace(
     Guid AlertId,
     Guid ResidentId,
@@ -49,5 +66,7 @@ public sealed record AlertTrace(
     DateTimeOffset RaisedAt,
     DateTimeOffset WindowStart,
     DateTimeOffset WindowEnd,
+    string Detector,
+    string? DecisionReason,
     DetectorThresholds Thresholds,
     IReadOnlyList<TraceSample> Samples);

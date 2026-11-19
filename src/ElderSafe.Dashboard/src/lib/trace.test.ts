@@ -30,6 +30,8 @@ function trace(samples: TraceSample[], overrides: Partial<AlertTrace> = {}): Ale
     raisedAt,
     windowStart: new Date(Date.parse(raisedAt) - 5500).toISOString(),
     windowEnd: new Date(Date.parse(raisedAt) + 1500).toISOString(),
+    detector: "Threshold",
+    decisionReason: "free fall, impact and stillness occurred in order",
     thresholds: {
       freeFallG: 0.6,
       impactG: 2.5,

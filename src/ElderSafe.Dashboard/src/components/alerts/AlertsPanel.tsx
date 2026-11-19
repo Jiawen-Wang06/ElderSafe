@@ -472,7 +472,8 @@ export function AlertsPanel() {
 
                   {expanded === alert.id && (
                     <TableRow>
-                      <TableCell colSpan={6} id={`trace-${alert.id}`}>
+                      {/* Table cells never wrap by default; the trace's sentences must, or they stretch the row and the chart with it. */}
+                      <TableCell colSpan={6} id={`trace-${alert.id}`} className="whitespace-normal">
                         {traceError !== null ? (
                           <p role="alert" className="text-sm text-destructive">
                             {traceError}

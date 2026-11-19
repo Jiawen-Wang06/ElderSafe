@@ -31,7 +31,9 @@ export interface TraceSample {
 }
 
 /**
- * The thresholds the detector was using when it judged this trace.
+ * The rule-based detector's thresholds. When the trained model raised the
+ * alert they were not applied, and are drawn only as a reference; `detector`
+ * on the trace says which case it is.
  *
  * Reported by the API rather than fixed here. They live in server
  * configuration and can be retuned without a rebuild (ADR-002), so a chart
@@ -56,6 +58,10 @@ export interface AlertTrace {
   raisedAt: string;
   windowStart: string;
   windowEnd: string;
+  /** The detector configured now. */
+  detector: "Threshold" | "Onnx";
+  /** What the detector recorded when it raised this alert; the record of what decided. */
+  decisionReason: string | null;
   thresholds: DetectorThresholds;
   samples: TraceSample[];
 }

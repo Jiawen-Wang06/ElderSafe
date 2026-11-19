@@ -94,7 +94,9 @@ export function AccelerationTrace({ trace }: { trace: AlertTrace }) {
   }
 
   return (
-    <div className="viz-root flex flex-col gap-3">
+    // Capped near the chart's drawn width (720 units), so on a wide screen
+    // its 11 px labels stay close to 11 px instead of scaling up with it.
+    <div className="viz-root flex max-w-3xl flex-col gap-3">
       <style>{`
         .viz-root {
           --viz-series: #2a78d6;
@@ -302,8 +304,16 @@ export function AccelerationTrace({ trace }: { trace: AlertTrace }) {
         )}
       </p>
 
+      {trace.decisionReason !== null && (
+        <p className="text-sm">
+          <span className="font-medium">Recorded reason:</span> {trace.decisionReason}
+        </p>
+      )}
+
       <p className="text-sm text-muted-foreground">
-        {findings.inExpectedOrder
+        {trace.detector === "Onnx"
+          ? `A trained model raised this alert. It scores the whole window rather than checking each line, so the lines show the rule-based detector's thresholds (free fall below ${trace.thresholds.freeFallG} g, impact of at least ${trace.thresholds.impactG} g) as a reference, not as the test applied.`
+          : findings.inExpectedOrder
           ? `Free fall below ${trace.thresholds.freeFallG} g, then an impact of at least ${trace.thresholds.impactG} g, then stillness — the three conditions the detector requires.`
           : `This trace does not show free fall followed by an impact in that order. The alert may have been raised from readings outside this window, or the thresholds may have been retuned since.`}
       </p>
