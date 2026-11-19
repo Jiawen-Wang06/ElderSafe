@@ -1,6 +1,6 @@
 # ADR-006: Authenticate caregivers with ASP.NET Core Identity and cookies
 
-**Status:** Accepted
+**Status:** Accepted. Updated 2026-11-19: the user type is now `UserAccount` (see below).
 **Date:** 2026-11-05
 
 ## Context
@@ -27,6 +27,8 @@ Two design points follow:
 **The caregiver is the user.** `Caregiver` derives from `IdentityUser` rather than sitting in a separate table joined to one. There is no identity-to-domain mapping to keep in sync, and a caregiver's assignments hang directly off the authenticated principal.
 
 **One `DbContext`.** `ElderSafeDbContext` derives from `IdentityDbContext<Caregiver>`, so Identity's tables and the domain tables share a context and a migration history. The Visual Studio template's "Individual Accounts" option generates a second context instead, which is why the project is created with authentication set to None and Identity added deliberately.
+
+> **Update (2026-11-19).** Resident accounts were added after this decision (migration `AddAccountTypes`). The Identity user is now `UserAccount : IdentityUser<Guid>`, with an `AccountType` of `Resident` or `Caregiver`, and the context derives from `IdentityDbContext<UserAccount, IdentityRole<Guid>, Guid>`. Both design points still hold: the account is the user, and there is one `DbContext`. What an account may do comes from its type and its relationships to residents.
 
 Cookies are chosen over bearer tokens because the dashboard is served from the same origin as the API, so the browser attaches the cookie to both HTTP calls and the SignalR WebSocket with no token plumbing.
 
